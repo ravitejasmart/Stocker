@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}Edit Trip - FleetSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-route text-success"></i> Edit Trip</h2>
+                <a href="{{ url_for('trips') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Trips
+                </a>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <form method="POST">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="trip_id" class="form-label">Trip ID</label>
+                                        <input type="text" class="form-control" id="trip_id" name="trip_id" 
+                                               value="{{ trip.trip_id if trip else '' }}" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="vehicle_id" class="form-label">Vehicle ID *</label>
+                                        <select class="form-select" id="vehicle_id" name="vehicle_id" required>
+                                            <option value="">Select Vehicle</option>
+                                            {% for vehicle in vehicles %}
+                                            <option value="{{ vehicle.vehicle_id }}" 
+                                                {{ 'selected' if trip and trip.vehicle_id == vehicle.vehicle_id else '' }}>
+                                                {{ vehicle.vehicle_id }} - {{ vehicle.make }} {{ vehicle.model }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="driver_name" class="form-label">Driver Name</label>
+                                        <input type="text" class="form-control" id="driver_name" name="driver_name" 
+                                               value="{{ trip.driver_name if trip else session.name }}" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="driver_email" class="form-label">Driver Email</label>
+                                        <input type="email" class="form-control" id="driver_email" name="driver_email" 
+                                               value="{{ trip.driver_email if trip else session.email }}" readonly>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="start_location" class="form-label">Start Location *</label>
+                                        <input type="text" class="form-control" id="start_location" name="start_location" 
+                                               value="{{ trip.start_location if trip else '' }}" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="end_location" class="form-label">End Location *</label>
+                                        <input type="text" class="form-control" id="end_location" name="end_location" 
+                                               value="{{ trip.end_location if trip else '' }}" required>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="start_mileage" class="form-label">Start Mileage *</label>
+                                        <input type="number" class="form-control" id="start_mileage" name="start_mileage" 
+                                               value="{{ trip.start_mileage if trip else '' }}" min="0" required>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="end_mileage" class="form-label">End Mileage *</label>
+                                        <input type="number" class="form-control" id="end_mileage" name="end_mileage" 
+                                               value="{{ trip.end_mileage if trip else '' }}" min="0" required>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="distance" class="form-label">Distance (Auto-calculated)</label>
+                                        <input type="number" class="form-control" id="distance" name="distance" 
+                                               value="{{ trip.distance if trip else '' }}" readonly>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="fuel_used" class="form-label">Fuel Used (Gallons/Liters)</label>
+                                        <input type="number" class="form-control" id="fuel_used" name="fuel_used" 
+                                               value="{{ trip.fuel_used if trip else '' }}" step="0.01" min="0">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="status" class="form-label">Status</label>
+                                        <select class="form-select" id="status" name="status">
+                                            <option value="in_progress" {{ 'selected' if trip and trip.status == 'in_progress' else '' }}>In Progress</option>
+                                            <option value="completed" {{ 'selected' if trip and trip.status == 'completed' else '' }}>Completed</option>
+                                            <option value="cancelled" {{ 'selected' if trip and trip.status == 'cancelled' else '' }}>Cancelled</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="start_time" class="form-label">Start Time</label>
+                                        <input type="datetime-local" class="form-control" id="start_time" name="start_time" 
+                                               value="{{ trip.start_time[:16] if trip and trip.start_time else '' }}">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="end_time" class="form-label">End Time</label>
+                                        <input type="datetime-local" class="form-control" id="end_time" name="end_time" 
+                                               value="{{ trip.end_time[:16] if trip and trip.end_time else '' }}">
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="purpose" class="form-label">Purpose</label>
+                                    <input type="text" class="form-control" id="purpose" name="purpose" 
+                                           value="{{ trip.purpose if trip else '' }}" placeholder="Trip purpose...">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label">Notes</label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                              placeholder="Additional trip notes...">{{ trip.notes if trip else '' }}</textarea>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Update Trip
+                                    </button>
+                                    <a href="{{ url_for('trips') }}" class="btn btn-secondary">Cancel</a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    {% if trip %}
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-info-circle"></i> Trip Info</h5>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Created:</strong> {{ trip.start_time[:10] if trip.start_time else 'N/A' }}</p>
+                            <p><strong>Driver:</strong> {{ trip.driver_name or 'N/A' }}</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge bg-{{ 'success' if trip.status == 'completed' else 'warning' if trip.status == 'in_progress' else 'danger' }}">
+                                    {{ trip.status.replace('_', ' ').title() }}
+                                </span>
+                            </p>
+                            <hr>
+                            <p><strong>Distance:</strong> {{ trip.distance or 0 }} miles</p>
+                            <p><strong>Fuel Used:</strong> {{ trip.fuel_used or 0 }} gallons</p>
+                            {% if trip.fuel_used and trip.distance %}
+                            <p><strong>Fuel Efficiency:</strong> {{ "%.2f"|format(trip.distance / trip.fuel_used) }} MPG</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm mt-3">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-calculator"></i> Quick Calculate</h5>
+                        </div>
+                        <div class="card-body">
+                            <button type="button" class="btn btn-info btn-sm w-100 mb-2" onclick="calculateDistance()">
+                                <i class="fas fa-calculator"></i> Calculate Distance
+                            </button>
+                            <button type="button" class="btn btn-warning btn-sm w-100" onclick="setCurrentTime()">
+                                <i class="fas fa-clock"></i> Set Current Time
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function calculateDistance() {
+    const startMileage = parseFloat(document.getElementById('start_mileage').value) || 0;
+    const endMileage = parseFloat(document.getElementById('end_mileage').value) || 0;
+    const distance = endMileage - startMileage;
+    
+    if (distance >= 0) {
+        document.getElementById('distance').value = distance;
+    } else {
+        alert('End mileage must be greater than start mileage');
+    }
+}
+
+function setCurrentTime() {
+    const now = new Date();
+    const formattedTime = now.toISOString().slice(0, 16);
+    
+    if (!document.getElementById('start_time').value) {
+        document.getElementById('start_time').value = formattedTime;
+    } else if (!document.getElementById('end_time').value) {
+        document.getElementById('end_time').value = formattedTime;
+    }
+}
+
+// Auto-calculate distance when mileage changes
+document.getElementById('start_mileage').addEventListener('input', calculateDistance);
+document.getElementById('end_mileage').addEventListener('input', calculateDistance);
+</script>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Server Error - FleetSync{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <div class="error-page">
+                <div class="error-code mb-4">
+                    <h1 class="display-1 text-danger fw-bold">500</h1>
+                </div>
+                <div class="error-message mb-4">
+                    <h2 class="h4 mb-3">Internal Server Error</h2>
+                    <p class="text-muted mb-4">
+                        Something went wrong on our end. Our technical team has been notified 
+                        and is working to resolve the issue. Please try again in a few moments.
+                    </p>
+                </div>
+                <div class="error-actions">
+                    <button onclick="window.location.reload()" class="btn btn-primary me-2">
+                        <i class="fas fa-redo me-1"></i>Try Again
+                    </button>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-tachometer-alt me-1"></i>Go to Dashboard
+                    </a>
+                </div>
+                <div class="mt-4">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        If the problem persists, please contact your system administrator.
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="text-center">
+                        <i class="fas fa-tools text-muted" style="font-size: 4rem; opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.error-page {
+    padding: 2rem 0;
+}
+
+.error-code h1 {
+    font-size: 8rem;
+    line-height: 1;
+    text-shadow: 0 0 20px rgba(220, 53, 69, 0.3);
+}
+
+@media (max-width: 768px) {
+    .error-code h1 {
+        font-size: 5rem;
+    }
+}
+</style>
+{% endblock %}

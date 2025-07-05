@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}Log Trip - FleetSync{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-route me-2"></i>Log New Trip
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" class="needs-validation" novalidate>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="vehicle_id" class="form-label">Vehicle <span class="text-danger">*</span></label>
+                                <select class="form-select" id="vehicle_id" name="vehicle_id" required>
+                                    <option value="">Select Vehicle</option>
+                                    {% if vehicles %}
+                                        {% for vehicle in vehicles %}
+                                            <option value="{{ vehicle.vehicle_id }}" 
+                                                    {% if request.form.vehicle_id == vehicle.vehicle_id|string %}selected{% endif %}>
+                                                {{ vehicle.make }} {{ vehicle.model }} - {{ vehicle.license_plate }}
+                                                {% if vehicle.status %} ({{ vehicle.status }}){% endif %}
+                                            </option>
+                                        {% endfor %}
+                                    {% else %}
+                                        <option value="" disabled>No vehicles available</option>
+                                    {% endif %}
+                                </select>
+                                <div class="invalid-feedback">Please select a vehicle.</div>
+                                <small class="form-text text-muted">Select the vehicle for this trip</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="purpose" class="form-label">Trip Purpose</label>
+                                <select class="form-select" id="purpose" name="purpose">
+                                    <option value="">Select Purpose</option>
+                                    <option value="delivery" {% if request.form.purpose == 'delivery' %}selected{% endif %}>Delivery</option>
+                                    <option value="pickup" {% if request.form.purpose == 'pickup' %}selected{% endif %}>Pickup</option>
+                                    <option value="maintenance" {% if request.form.purpose == 'maintenance' %}selected{% endif %}>Maintenance</option>
+                                    <option value="business" {% if request.form.purpose == 'business' %}selected{% endif %}>Business Meeting</option>
+                                    <option value="client_visit" {% if request.form.purpose == 'client_visit' %}selected{% endif %}>Client Visit</option>
+                                    <option value="training" {% if request.form.purpose == 'training' %}selected{% endif %}>Training</option>
+                                    <option value="other" {% if request.form.purpose == 'other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="start_location" class="form-label">Start Location <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="start_location" name="start_location" 
+                                       value="{{ request.form.start_location or '' }}" required
+                                       placeholder="e.g., Office HQ, 123 Main St">
+                                <div class="invalid-feedback">Please enter start location.</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="end_location" class="form-label">End Location <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="end_location" name="end_location" 
+                                       value="{{ request.form.end_location or '' }}" required
+                                       placeholder="e.g., Client Site, 456 Oak Ave">
+                                <div class="invalid-feedback">Please enter end location.</div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="start_mileage" class="form-label">Start Mileage <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="start_mileage" name="start_mileage" 
+                                       value="{{ request.form.start_mileage or '' }}" min="0" step="0.1" required
+                                       placeholder="0.0">
+                                <div class="invalid-feedback">Please enter start mileage.</div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="end_mileage" class="form-label">End Mileage <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="end_mileage" name="end_mileage" 
+                                       value="{{ request.form.end_mileage or '' }}" min="0" step="0.1" required
+                                       placeholder="0.0">
+                                <div class="invalid-feedback">Please enter end mileage.</div>
+                                <div id="distance-display" class="form-text text-muted"></div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="fuel_used" class="form-label">Fuel Used (Liters)</label>
+                                <input type="number" class="form-control" id="fuel_used" name="fuel_used" 
+                                       value="{{ request.form.fuel_used or '' }}" min="0" step="0.01"
+                                       placeholder="0.00">
+                                <small class="form-text text-muted">Optional: Enter fuel consumed</small>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="trip_date" class="form-label">Trip Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="trip_date" name="trip_date" 
+                                       value="{{ request.form.trip_date or today }}" required>
+                                <div class="invalid-feedback">Please select trip date.</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="driver_name" class="form-label">Driver Name</label>
+                                <input type="text" class="form-control" id="driver_name" name="driver_name" 
+                                       value="{{ request.form.driver_name or session.get('name', '') }}"
+                                       placeholder="Driver's full name">
+                                <small class="form-text text-muted">Leave blank to use logged-in user</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Additional Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                      placeholder="Any additional information about the trip...">{{ request.form.notes or '' }}</textarea>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('trips') }}" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Trips
+                            </a>
+                            <button type="reset" class="btn btn-outline-secondary me-md-2">
+                                <i class="fas fa-undo me-1"></i>Reset Form
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>Log Trip
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Calculate distance automatically and validate mileage
+function updateDistance() {
+    const startMileage = parseFloat(document.getElementById('start_mileage').value) || 0;
+    const endMileage = parseFloat(document.getElementById('end_mileage').value) || 0;
+    const distanceDisplay = document.getElementById('distance-display');
+    const endMileageInput = document.getElementById('end_mileage');
+    
+    if (startMileage > 0 && endMileage > 0) {
+        const distance = endMileage - startMileage;
+        
+        if (distance < 0) {
+            endMileageInput.setCustomValidity('End mileage must be greater than start mileage');
+            distanceDisplay.innerHTML = '<span class="text-danger">Invalid: End mileage is less than start mileage</span>';
+        } else if (distance === 0) {
+            endMileageInput.setCustomValidity('');
+            distanceDisplay.innerHTML = '<span class="text-warning">Distance: 0.0 km</span>';
+        } else {
+            endMileageInput.setCustomValidity('');
+            distanceDisplay.innerHTML = `<span class="text-success">Distance: ${distance.toFixed(1)} km</span>`;
+        }
+    } else {
+        endMileageInput.setCustomValidity('');
+        distanceDisplay.innerHTML = '';
+    }
+}
+
+// Add event listeners for mileage calculation
+document.getElementById('start_mileage').addEventListener('input', updateDistance);
+document.getElementById('end_mileage').addEventListener('input', updateDistance);
+
+// Set today's date as default if not already set
+document.addEventListener('DOMContentLoaded', function() {
+    const tripDateInput = document.getElementById('trip_date');
+    if (!tripDateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        tripDateInput.value = today;
+    }
+    
+    // Initial distance calculation
+    updateDistance();
+});
+
+// Enhanced Bootstrap form validation
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                // Custom validation for mileage
+                const startMileage = parseFloat(document.getElementById('start_mileage').value) || 0;
+                const endMileage = parseFloat(document.getElementById('end_mileage').value) || 0;
+                
+                if (endMileage <= startMileage) {
+                    document.getElementById('end_mileage').setCustomValidity('End mileage must be greater than start mileage');
+                }
+                
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+
+// Auto-complete suggestions for locations (if you have a list of common locations)
+// This is optional and would require additional backend support
+/*
+const commonLocations = ['Office HQ', 'Warehouse A', 'Client Site Downtown', 'Service Center'];
+
+function setupAutocomplete(inputId) {
+    const input = document.getElementById(inputId);
+    // Implementation would go here for autocomplete functionality
+}
+*/
+</script>
+
+<style>
+/* Additional custom styles for better UX */
+.form-control:focus, .form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.invalid-feedback {
+    display: block;
+}
+
+#distance-display {
+    font-weight: 500;
+    margin-top: 0.25rem;
+}
+
+.card {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.card-header {
+    border-radius: 0.5rem 0.5rem 0 0 !important;
+}
+
+/* Loading state for submit button */
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+</style>
+{% endblock %}

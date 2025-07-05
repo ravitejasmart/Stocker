@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title %}Reports & Analytics - FleetSync{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-4">Fleet Reports & Analytics</h1>
+        <div class="flex flex-wrap gap-4 mb-6">
+            <button onclick="showReport('overview')" class="report-tab bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200">
+                <i class="fas fa-chart-line mr-2"></i>Overview
+            </button>
+            <button onclick="showReport('vehicles')" class="report-tab bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition duration-200">
+                <i class="fas fa-car mr-2"></i>Vehicle Reports
+            </button>
+            <button onclick="showReport('maintenance')" class="report-tab bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition duration-200">
+                <i class="fas fa-wrench mr-2"></i>Maintenance Reports
+            </button>
+            <button onclick="showReport('trips')" class="report-tab bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition duration-200">
+                <i class="fas fa-route mr-2"></i>Trip Reports
+            </button>
+            <button onclick="showReport('drivers')" class="report-tab bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition duration-200">
+                <i class="fas fa-users mr-2"></i>Driver Reports
+            </button>
+        </div>
+    </div>
+
+    <!-- Date Range Filter -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="flex flex-wrap items-center gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                <input type="date" id="fromDate" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                <input type="date" id="toDate" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex items-end">
+                <button onclick="filterReports()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition duration-200">
+                    <i class="fas fa-filter mr-2"></i>Filter
+                </button>
+            </div>
+            <div class="flex items-end">
+                <button onclick="exportReport()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition duration-200">
+                    <i class="fas fa-download mr-2"></i>Export
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overview Report -->
+    <div id="overview-report" class="report-section">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-blue-100">Total Vehicles</p>
+                        <p class="text-3xl font-bold">{{ report_data.total_vehicles or 0 }}</p>
+                    </div>
+                    <i class="fas fa-car text-2xl text-blue-200"></i>
+                </div>
+            </div>
+            <div class="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-green-100">Active Vehicles</p>
+                        <p class="text-3xl font-bold">{{ report_data.active_vehicles or 0 }}</p>
+                    </div>
+                    <i class="fas fa-check-circle text-2xl text-green-200"></i>
+                </div>
+            </div>
+            <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-yellow-100">Total Trips</p>
+                        <p class="text-3xl font-bold">{{ report_data.total_trips or 0 }}</p>
+                    </div>
+                    <i class="fas fa-route text-2xl text-yellow-200"></i>
+                </div>
+            </div>
+            <div class="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-red-100">Maintenance Due</p>
+                        <p class="text-3xl font-bold">{{ report_data.maintenance_due or 0 }}</p>
+                    </div>
+                    <i class="fas fa-exclamation-triangle text-2xl text-red-200"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-4">Monthly Fleet Utilization</h3>
+                <canvas id="utilizationChart" width="400" height="200"></canvas>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-4">Fuel Consumption Trend</h3>
+                <canvas id="fuelChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vehicle Reports -->
+    <div id="vehicles-report" class="report-section hidden">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-xl font-semibold mb-6">Vehicle Performance Report</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Make/Model</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Miles</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fuel Used</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Efficiency</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for vehicle in report_data.vehicles %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ vehicle.vehicle_id }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ vehicle.make }} {{ vehicle.model }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ vehicle.total_miles or 0 }} mi</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ vehicle.fuel_used or 0 }} gal</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ vehicle.efficiency or 0 }} mpg</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                                    {% if vehicle.status == 'active' %}bg-green-100 text-green-800
+                                    {% else %}bg-red-100 text-red-800{% endif %}">
+                                    {{ vehicle.status.title() }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Maintenance Reports -->
+    <div id="maintenance-report" class="report-section hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-4">Maintenance Cost Breakdown</h3>
+                <canvas id="maintenanceCostChart" width="400" height="200"></canvas>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold mb-4">Upcoming Maintenance</h3>
+                <div class="space-y-4">
+                    {% for maintenance in report_data.upcoming_maintenance %}
+                    <div class="border-l-4 border-yellow-500 bg-yellow-50 p-4">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-medium text-gray-900">{{ maintenance.vehicle_id }}</p>
+                                <p class="text-sm text-gray-600">{{ maintenance.maintenance_type }}</p>
+                                <p class="text-xs text-gray-500">Due: {{ maintenance.scheduled_date }}</p>
+                            </div>
+                            <span class="text-sm font-medium text-yellow-800">${{ maintenance.estimated_cost or 0 }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trip Reports -->
+    <div id="trips-report" class="report-section hidden">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-xl font-semibold mb-6">Trip Analysis</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="text-center">
+                    <p class="text-2xl font-bold text-blue-600">{{ report_data.total_distance or 0 }}</p>
+                    <p class="text-sm text-gray-600">Total Miles</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-2xl font-bold text-green-600">{{ report_data.avg_trip_distance or 0 }}</p>
+                    <p class="text-sm text-gray-600">Avg Trip Distance</p>
+                </div>
+                <div class="text-center">
+                    <p class="text-2xl font-bold text-yellow-600">${{ report_data.fuel_costs or 0 }}</p>
+                    <p class="text-sm text-gray-600">Total Fuel Cost</p>
+                </div>
+            </div>
+            <canvas id="tripChart" width="800" height="300"></canvas>
+        </div>
+    </div>
+
+    <!-- Driver Reports -->
+    <div id="drivers-report" class="report-section hidden">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-xl font-semibold mb-6">Driver Performance</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Trips</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Miles Driven</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fuel Efficiency</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Safety Score</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for driver in report_data.drivers %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {{ driver.driver_name }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ driver.total_trips or 0 }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ driver.miles_driven or 0 }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ driver.fuel_efficiency or 0 }} mpg</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                                        <div class="bg-green-500 h-2 rounded-full" data-width="{{ driver.safety_score or 0 }}"></div>
+                                    </div>
+                                    <span class="text-sm text-gray-600">{{ driver.safety_score or 0 }}%</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showReport(reportType) {
+    // Hide all reports
+    document.querySelectorAll('.report-section').forEach(section => {
+        section.classList.add('hidden');
+    });
+    
+    // Show selected report
+    document.getElementById(reportType + '-report').classList.remove('hidden');
+    
+    // Update tab styles
+    document.querySelectorAll('.report-tab').forEach(tab => {
+        tab.classList.remove('bg-blue-500', 'bg-blue-600');
+        tab.classList.add('bg-gray-500', 'hover:bg-gray-600');
+    });
+    
+    event.target.classList.remove('bg-gray-500', 'hover:bg-gray-600');
+    event.target.classList.add('bg-blue-500', 'hover:bg-blue-600');
+}
+
+function filterReports() {
+    const fromDate = document.getElementById('fromDate').value;
+    const toDate = document.getElementById('toDate').value;
+    
+    if (fromDate && toDate) {
+        // Implement filter logic here
+        console.log('Filtering from', fromDate, 'to', toDate);
+        // You would typically send this to your backend
+    }
+}
+
+function exportReport() {
+    // Implement export functionality
+    console.log('Exporting report...');
+    // You would typically generate and download a PDF or Excel file
+}
+
+// Initialize charts and set progress bar widths
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize charts here
+    console.log('Initializing charts...');
+    
+    // Set width for safety score progress bars
+    document.querySelectorAll('[data-width]').forEach(function(element) {
+        const width = element.getAttribute('data-width');
+        element.style.width = width + '%';
+    });
+});
+</script>
+{% endblock %}

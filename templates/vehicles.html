@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Vehicles - FleetSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-truck me-2"></i>Vehicle Management
+        </h1>
+        {% if session.role == 'fleet_manager' %}
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('add_vehicle') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add New Vehicle
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Filter and Search -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="input-group">
+                <input type="text" class="form-control" id="searchInput" placeholder="Search vehicles...">
+                <button class="btn btn-outline-secondary" type="button">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <select class="form-select" id="statusFilter">
+                <option value="">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="maintenance">In Maintenance</option>
+                <option value="inactive">Inactive</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Vehicles Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                {% if session.role == 'driver' %}
+                    My Assigned Vehicles
+                {% else %}
+                    All Vehicles
+                {% endif %}
+            </h6>
+        </div>
+        <div class="card-body">
+            {% if vehicles %}
+            <div class="table-responsive">
+                <table class="table table-bordered" id="vehiclesTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Vehicle ID</th>
+                            <th>Make/Model</th>
+                            <th>Year</th>
+                            <th>License Plate</th>
+                            <th>Status</th>
+                            <th>Mileage</th>
+                            <th>Fuel Type</th>
+                            {% if session.role != 'driver' %}
+                            <th>Assigned Driver</th>
+                            {% endif %}
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for vehicle in vehicles %}
+                        <tr>
+                            <td><strong>{{ vehicle.vehicle_id }}</strong></td>
+                            <td>{{ vehicle.make }} {{ vehicle.model }}</td>
+                            <td>{{ vehicle.year }}</td>
+                            <td>{{ vehicle.license_plate }}</td>
+                            <td>
+                                {% if vehicle.status == 'active' %}
+                                    <span class="badge bg-success">Active</span>
+                                {% elif vehicle.status == 'maintenance' %}
+                                    <span class="badge bg-warning">Maintenance</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ vehicle.mileage or 0 }} miles</td>
+                            <td>{{ vehicle.fuel_type|title }}</td>
+                            {% if session.role != 'driver' %}
+                            <td>
+                                {% if vehicle.assigned_driver %}
+                                    <small class="text-muted">{{ vehicle.assigned_driver }}</small>
+                                {% else %}
+                                    <span class="text-muted">Unassigned</span>
+                                {% endif %}
+                            </td>
+                            {% endif %}
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm btn-outline-info" 
+                                            onclick="viewVehicleDetails('{{ vehicle.vehicle_id }}')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    {% if session.role == 'fleet_manager' %}
+                                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                                            onclick="editVehicle('{{ vehicle.vehicle_id }}')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-warning" 
+                                            onclick="scheduleMaintenanceForVehicle('{{ vehicle.vehicle_id }}')">
+                                        <i class="fas fa-wrench"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No vehicles found</h5>
+                <p class="text-muted">
+                    {% if session.role == 'driver' %}
+                        No vehicles have been assigned to you yet.
+                    {% else %}
+                        Get started by adding your first vehicle to the fleet.
+                    {% endif %}
+                </p>
+                {% if session.role == 'fleet_manager' %}
+                <a href="{{ url_for('add_vehicle') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Vehicle
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Vehicle Details Modal -->
+<div class="modal fade" id="vehicleDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Vehicle Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="vehicleDetailsContent">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Search functionality
+document.getElementById('searchInput').addEventListener('keyup', function() {
+    const searchTerm = this.value.toLowerCase();
+    const tableRows = document.querySelectorAll('#vehiclesTable tbody tr');
+    
+    tableRows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchTerm) ? '' : 'none';
+    });
+});
+
+// Status filter
+document.getElementById('statusFilter').addEventListener('change', function() {
+    const filterValue = this.value.toLowerCase();
+    const tableRows = document.querySelectorAll('#vehiclesTable tbody tr');
+    
+    tableRows.forEach(row => {
+        if (filterValue === '') {
+            row.style.display = '';
+        } else {
+            const statusCell = row.querySelector('td:nth-child(5)');
+            const statusText = statusCell.textContent.toLowerCase();
+            row.style.display = statusText.includes(filterValue) ? '' : 'none';
+        }
+    });
+});
+
+// View vehicle details
+function viewVehicleDetails(vehicleId) {
+    fetch(`/api/vehicle_status/${vehicleId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const vehicle = data.data;
+                document.getElementById('vehicleDetailsContent').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Vehicle Information</h6>
+                            <p><strong>Vehicle ID:</strong> ${vehicle.vehicle_id}</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge bg-${vehicle.status === 'active' ? 'success' : 'warning'}">
+                                    ${vehicle.status}
+                                </span>
+                            </p>
+                            <p><strong>Current Mileage:</strong> ${vehicle.mileage} miles</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Assignment</h6>
+                            <p><strong>Assigned Driver:</strong> ${vehicle.assigned_driver || 'Unassigned'}</p>
+                        </div>
+                    </div>
+                `;
+                new bootstrap.Modal(document.getElementById('vehicleDetailsModal')).show();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading vehicle details');
+        });
+}
+
+// Edit vehicle (placeholder)
+function editVehicle(vehicleId) {
+    alert('Edit functionality would be implemented here for vehicle: ' + vehicleId);
+}
+
+// Schedule maintenance for vehicle
+function scheduleMaintenanceForVehicle(vehicleId) {
+    window.location.href = `{{ url_for('schedule_maintenance') }}?vehicle_id=${vehicleId}`;
+}
+</script>
+
+<style>
+.table th {
+    border-top: none;
+}
+
+.btn-group .btn {
+    border-radius: 0.25rem;
+    margin-right: 2px;
+}
+
+.card {
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.modal-header {
+    background-color: #f8f9fc;
+    border-bottom: 1px solid #e3e6f0;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% block title %}Trips - FleetSync{% endblock %}
+{% block content %}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-header d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-route me-2"></i>Trip Management</h2>
+                {% if session.role == 'driver' %}
+                <a href="{{ url_for('log_trip') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Log New Trip
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Trip Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Total Trips</h6>
+                            <h3>{{ trips|length }}</h3>
+                        </div>
+                        <i class="fas fa-road fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Total Distance</h6>
+                            <h3>{{ trips|sum(attribute='distance')|round(1) }} mi</h3>
+                        </div>
+                        <i class="fas fa-tachometer-alt fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Fuel Used</h6>
+                            <h3>{{ trips|sum(attribute='fuel_used')|round(1) }} gal</h3>
+                        </div>
+                        <i class="fas fa-gas-pump fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Active Vehicles</h6>
+                            <h3>{{ trips|map(attribute='vehicle_id')|list|unique|length }}</h3>
+                        </div>
+                        <i class="fas fa-truck fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label">Filter by Vehicle</label>
+                            <select class="form-select" id="vehicleFilter">
+                                <option value="">All Vehicles</option>
+                                {% for trip in trips %}
+                                    {% set vehicle_id = trip.vehicle_id %}
+                                    {% if vehicle_id not in (trips|selectattr('vehicle_id', 'equalto', vehicle_id)|list)[:-1]|map(attribute='vehicle_id')|list %}
+                                    <option value="{{ vehicle_id }}">{{ vehicle_id }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Filter by Driver</label>
+                            <select class="form-select" id="driverFilter">
+                                <option value="">All Drivers</option>
+                                {% for trip in trips %}
+                                    {% set driver = trip.driver_name %}
+                                    {% if driver not in (trips|selectattr('driver_name', 'equalto', driver)|list)[:-1]|map(attribute='driver_name')|list %}
+                                    <option value="{{ driver }}">{{ driver }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Date Range</label>
+                            <input type="date" class="form-control" id="dateFilter">
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                                <i class="fas fa-times me-1"></i>Clear Filters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trips Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Trip Records</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if trips %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="tripsTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Trip ID</th>
+                                    <th>Vehicle</th>
+                                    <th>Driver</th>
+                                    <th>Route</th>
+                                    <th>Distance</th>
+                                    <th>Fuel Used</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for trip in trips %}
+                                <tr data-vehicle="{{ trip.vehicle_id }}" data-driver="{{ trip.driver_name }}" data-date="{{ trip.start_time[:10] }}">
+                                    <td>
+                                        <span class="badge bg-light text-dark">{{ trip.trip_id[:8] }}...</span>
+                                    </td>
+                                    <td>
+                                        <strong>{{ trip.vehicle_id }}</strong>
+                                    </td>
+                                    <td>
+                                        <i class="fas fa-user me-1"></i>{{ trip.driver_name }}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            <i class="fas fa-map-marker-alt text-success me-1"></i>{{ trip.start_location }}<br>
+                                            <i class="fas fa-flag-checkered text-danger me-1"></i>{{ trip.end_location }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ trip.distance }} mi</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning">{{ trip.fuel_used }} gal</span>
+                                    </td>
+                                    <td>
+                                        {{ moment(trip.start_time).format('MMM DD, YYYY HH:mm') }}
+                                    </td>
+                                    <td>
+                                        {% if trip.status == 'completed' %}
+                                        <span class="badge bg-success">Completed</span>
+                                        {% elif trip.status == 'in_progress' %}
+                                        <span class="badge bg-warning">In Progress</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ trip.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" onclick="viewTripDetails('{{ trip.trip_id }}')" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            {% if session.role in ['fleet_manager', 'admin'] %}
+                                            <button class="btn btn-outline-info" onclick="generateReport('{{ trip.trip_id }}')" title="Generate Report">
+                                                <i class="fas fa-file-alt"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-route fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No trips recorded yet</h5>
+                        {% if session.role == 'driver' %}
+                        <p class="text-muted">Start by logging your first trip!</p>
+                        <a href="{{ url_for('log_trip') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Log First Trip
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trip Details Modal -->
+<div class="modal fade" id="tripDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-route me-2"></i>Trip Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="tripDetailsContent">
+                <!-- Trip details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Filter functionality
+function applyFilters() {
+    const vehicleFilter = document.getElementById('vehicleFilter').value.toLowerCase();
+    const driverFilter = document.getElementById('driverFilter').value.toLowerCase();
+    const dateFilter = document.getElementById('dateFilter').value;
+    const rows = document.querySelectorAll('#tripsTable tbody tr');
+    
+    rows.forEach(row => {
+        const vehicle = row.getAttribute('data-vehicle').toLowerCase();
+        const driver = row.getAttribute('data-driver').toLowerCase();
+        const date = row.getAttribute('data-date');
+        
+        const vehicleMatch = !vehicleFilter || vehicle.includes(vehicleFilter);
+        const driverMatch = !driverFilter || driver.includes(driverFilter);
+        const dateMatch = !dateFilter || date === dateFilter;
+        
+        if (vehicleMatch && driverMatch && dateMatch) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function clearFilters() {
+    document.getElementById('vehicleFilter').value = '';
+    document.getElementById('driverFilter').value = '';
+    document.getElementById('dateFilter').value = '';
+    applyFilters();
+}
+
+// Event listeners for filters
+document.getElementById('vehicleFilter').addEventListener('change', applyFilters);
+document.getElementById('driverFilter').addEventListener('change', applyFilters);
+document.getElementById('dateFilter').addEventListener('change', applyFilters);
+
+// Trip details modal
+function viewTripDetails(tripId) {
+    // In a real application, you would fetch trip details via AJAX
+    const modal = new bootstrap.Modal(document.getElementById('tripDetailsModal'));
+    document.getElementById('tripDetailsContent').innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading trip details...</p>
+        </div>
+    `;
+    modal.show();
+    
+    // Simulate loading trip details
+    setTimeout(() => {
+        document.getElementById('tripDetailsContent').innerHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><i class="fas fa-info-circle me-2"></i>Trip Information</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Trip ID:</strong></td><td>${tripId}</td></tr>
+                        <tr><td><strong>Purpose:</strong></td><td>Business Meeting</td></tr>
+                        <tr><td><strong>Notes:</strong></td><td>Client visit downtown</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6><i class="fas fa-chart-line me-2"></i>Performance Metrics</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Avg Speed:</strong></td><td>45 mph</td></tr>
+                        <tr><td><strong>Fuel Efficiency:</strong></td><td>28 mpg</td></tr>
+                        <tr><td><strong>Duration:</strong></td><td>2h 15m</td></tr>
+                    </table>
+                </div>
+            </div>
+        `;
+    }, 1000);
+}
+
+function generateReport(tripId) {
+    // Generate report functionality
+    alert('Generating report for trip: ' + tripId);
+}
+</script>
+
+{% endblock %}

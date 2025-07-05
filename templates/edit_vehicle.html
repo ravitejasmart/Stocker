@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Edit Vehicle - FleetSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-edit text-primary"></i> Edit Vehicle</h2>
+                <a href="{{ url_for('vehicles') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Vehicles
+                </a>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <form method="POST">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="vehicle_id" class="form-label">Vehicle ID *</label>
+                                        <input type="text" class="form-control" id="vehicle_id" name="vehicle_id" 
+                                               value="{{ vehicle.vehicle_id if vehicle else '' }}" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="license_plate" class="form-label">License Plate *</label>
+                                        <input type="text" class="form-control" id="license_plate" name="license_plate" 
+                                               value="{{ vehicle.license_plate if vehicle else '' }}" required>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="make" class="form-label">Make *</label>
+                                        <input type="text" class="form-control" id="make" name="make" 
+                                               value="{{ vehicle.make if vehicle else '' }}" required>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="model" class="form-label">Model *</label>
+                                        <input type="text" class="form-control" id="model" name="model" 
+                                               value="{{ vehicle.model if vehicle else '' }}" required>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="year" class="form-label">Year *</label>
+                                        <input type="number" class="form-control" id="year" name="year" 
+                                               value="{{ vehicle.year if vehicle else '' }}" min="1900" max="2030" required>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="fuel_type" class="form-label">Fuel Type</label>
+                                        <select class="form-select" id="fuel_type" name="fuel_type">
+                                            <option value="gasoline" {{ 'selected' if vehicle and vehicle.fuel_type == 'gasoline' else '' }}>Gasoline</option>
+                                            <option value="diesel" {{ 'selected' if vehicle and vehicle.fuel_type == 'diesel' else '' }}>Diesel</option>
+                                            <option value="electric" {{ 'selected' if vehicle and vehicle.fuel_type == 'electric' else '' }}>Electric</option>
+                                            <option value="hybrid" {{ 'selected' if vehicle and vehicle.fuel_type == 'hybrid' else '' }}>Hybrid</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="mileage" class="form-label">Current Mileage</label>
+                                        <input type="number" class="form-control" id="mileage" name="mileage" 
+                                               value="{{ vehicle.mileage if vehicle else '0' }}" min="0">
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="status" class="form-label">Status</label>
+                                        <select class="form-select" id="status" name="status">
+                                            <option value="active" {{ 'selected' if vehicle and vehicle.status == 'active' else '' }}>Active</option>
+                                            <option value="maintenance" {{ 'selected' if vehicle and vehicle.status == 'maintenance' else '' }}>In Maintenance</option>
+                                            <option value="inactive" {{ 'selected' if vehicle and vehicle.status == 'inactive' else '' }}>Inactive</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="assigned_driver" class="form-label">Assigned Driver</label>
+                                        <select class="form-select" id="assigned_driver" name="assigned_driver">
+                                            <option value="">Select Driver</option>
+                                            {% for driver in drivers %}
+                                            <option value="{{ driver.email }}" 
+                                                {{ 'selected' if vehicle and vehicle.assigned_driver == driver.email else '' }}>
+                                                {{ driver.name }} ({{ driver.email }})
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Update Vehicle
+                                    </button>
+                                    <a href="{{ url_for('vehicles') }}" class="btn btn-secondary">Cancel</a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    {% if vehicle %}
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-info-circle"></i> Vehicle Info</h5>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Created:</strong> {{ vehicle.created_at[:10] if vehicle.created_at else 'N/A' }}</p>
+                            <p><strong>Created By:</strong> {{ vehicle.created_by or 'N/A' }}</p>
+                            <p><strong>Last Updated:</strong> {{ vehicle.updated_at[:10] if vehicle.updated_at else 'N/A' }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

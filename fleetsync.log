@@ -1,0 +1,64 @@
+2025-07-02 10:20:40,097 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.7:5000
+2025-07-02 10:20:40,097 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-07-02 10:20:40,121 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-07-02 10:20:40,906 - werkzeug - WARNING -  * Debugger is active!
+2025-07-02 10:20:40,914 - werkzeug - INFO -  * Debugger PIN: 636-670-789
+2025-07-02 10:20:45,567 - werkzeug - INFO -  * Detected change in 'C:\\Program Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\\Lib\\encodings\\unicode_escape.py', reloading
+2025-07-02 10:20:45,583 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 10:20:45] "GET / HTTP/1.1" 200 -
+2025-07-02 10:20:46,308 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-07-02 10:20:47,534 - werkzeug - WARNING -  * Debugger is active!
+2025-07-02 10:20:47,539 - werkzeug - INFO -  * Debugger PIN: 636-670-789
+2025-07-02 10:20:47,636 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 10:20:47] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-07-02 10:20:54,604 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 10:20:54] "GET /login HTTP/1.1" 200 -
+2025-07-02 10:21:06,230 - werkzeug - INFO -  * Detected change in 'C:\\Program Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\\Lib\\importlib\\readers.py', reloading
+2025-07-02 10:21:06,233 - werkzeug - INFO -  * Detected change in 'C:\\Program Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\\Lib\\importlib\\resources\\readers.py', reloading
+2025-07-02 10:21:06,239 - werkzeug - INFO -  * Detected change in 'C:\\Program Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\\Lib\\importlib\\resources\\_itertools.py', reloading
+2025-07-02 10:21:07,077 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-07-02 10:21:07,889 - werkzeug - WARNING -  * Debugger is active!
+2025-07-02 10:21:07,893 - werkzeug - INFO -  * Debugger PIN: 636-670-789
+2025-07-02 10:21:17,032 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 10:21:17] "GET /register HTTP/1.1" 200 -
+2025-07-02 10:21:37,507 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 10:21:37] "[35m[1mPOST /register HTTP/1.1[0m" 500 -
+2025-07-02 10:21:37,904 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 10:21:37] "GET /register?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+2025-07-02 10:21:37,912 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 10:21:37] "GET /register?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+2025-07-02 10:21:37,957 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 10:21:37] "GET /register?__debugger__=yes&cmd=resource&f=console.png&s=SYdmwiHXgtvkJC2Oko7T HTTP/1.1" 200 -
+2025-07-02 10:21:38,111 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 10:21:38] "GET /register?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+2025-07-02 10:56:26,839 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.7:5000
+2025-07-02 10:56:26,856 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-07-02 10:56:26,887 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-07-02 10:56:27,939 - werkzeug - WARNING -  * Debugger is active!
+2025-07-02 10:56:27,950 - werkzeug - INFO -  * Debugger PIN: 636-670-789
+2025-07-02 11:18:27,055 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.7:5000
+2025-07-02 11:18:27,055 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-07-02 11:18:27,082 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-07-02 11:18:28,705 - werkzeug - WARNING -  * Debugger is active!
+2025-07-02 11:18:28,716 - werkzeug - INFO -  * Debugger PIN: 636-670-789
+2025-07-02 11:18:31,155 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 11:18:31] "GET / HTTP/1.1" 200 -
+2025-07-02 11:18:32,267 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 11:18:32] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-07-02 11:18:33,822 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 11:18:33] "GET /register HTTP/1.1" 200 -
+2025-07-02 11:18:55,782 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 11:18:55] "[35m[1mPOST /register HTTP/1.1[0m" 500 -
+2025-07-02 11:18:56,399 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 11:18:56] "GET /register?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+2025-07-02 11:18:56,412 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 11:18:56] "GET /register?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+2025-07-02 11:18:56,442 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 11:18:56] "GET /register?__debugger__=yes&cmd=resource&f=console.png&s=Z9wRg9azeBF5Mscf50wr HTTP/1.1" 200 -
+2025-07-02 11:18:56,527 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 11:18:56] "GET /register?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+2025-07-02 11:31:48,141 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.7:5000
+2025-07-02 11:31:48,237 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2025-07-02 11:31:48,285 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-07-02 11:31:49,971 - werkzeug - WARNING -  * Debugger is active!
+2025-07-02 11:31:50,001 - werkzeug - INFO -  * Debugger PIN: 636-670-789
+2025-07-02 11:32:27,007 - werkzeug - INFO -  * Detected change in 'C:\\Program Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\\Lib\\encodings\\unicode_escape.py', reloading
+2025-07-02 11:32:27,053 - werkzeug - INFO - 127.0.0.1 - - [02/Jul/2025 11:32:27] "GET / HTTP/1.1" 200 -
+2025-07-02 11:32:28,403 - werkzeug - INFO -  * Restarting with watchdog (windowsapi)
+2025-07-02 11:32:29,726 - werkzeug - WARNING -  * Debugger is active!
+2025-07-02 11:32:29,734 - werkzeug - INFO -  * Debugger PIN: 636-670-789

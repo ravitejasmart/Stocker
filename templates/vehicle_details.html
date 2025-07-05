@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Vehicle Details - FleetSync{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-car me-2"></i>Vehicle Details
+                    </h4>
+                    <span class="badge bg-{{ 'success' if vehicle.status == 'active' else 'danger' }}">
+                        {{ vehicle.status.title() }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold">Vehicle ID:</td>
+                                    <td>{{ vehicle.vehicle_id }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Make:</td>
+                                    <td>{{ vehicle.make }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Model:</td>
+                                    <td>{{ vehicle.model }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Year:</td>
+                                    <td>{{ vehicle.year }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">License Plate:</td>
+                                    <td><span class="badge bg-secondary">{{ vehicle.license_plate }}</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold">Current Mileage:</td>
+                                    <td>{{ "{:,}".format(vehicle.mileage) }} km</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Fuel Type:</td>
+                                    <td>{{ vehicle.fuel_type.title() }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Assigned Driver:</td>
+                                    <td>{{ vehicle.assigned_driver or 'Not Assigned' }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Created By:</td>
+                                    <td>{{ vehicle.created_by }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Created Date:</td>
+                                    <td>{{ vehicle.created_at[:10] if vehicle.created_at else 'N/A' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('vehicles') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Vehicles
+                    </a>
+                    {% if session.role in ['fleet_manager', 'admin'] %}
+                        <button class="btn btn-warning ms-2" data-bs-toggle="modal" data-bs-target="#editVehicleModal">
+                            <i class="fas fa-edit me-1"></i>Edit Vehicle
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Quick Stats -->
+            <div class="card shadow mb-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Quick Stats</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Total Trips:</span>
+                        <span class="fw-bold">{{ stats.total_trips or 0 }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Total Distance:</span>
+                        <span class="fw-bold">{{ "{:,}".format(stats.total_distance or 0) }} km</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Last Maintenance:</span>
+                        <span class="fw-bold text-{{ 'success' if stats.days_since_maintenance < 30 else 'warning' }}">
+                            {{ stats.last_maintenance or 'Never' }}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Next Service Due:</span>
+                        <span class="fw-bold">{{ stats.next_service or 'Not Scheduled' }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Activity -->
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0"><i class="fas fa-history me-2"></i>Recent Activity</h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_trips %}
+                        {% for trip in recent_trips[:5] %}
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                                <div>
+                                    <small class="text-muted">{{ trip.start_time[:10] }}</small><br>
+                                    <span class="fw-bold">{{ trip.start_location }} → {{ trip.end_location }}</span>
+                                </div>
+                                <span class="badge bg-primary">{{ trip.distance }} km</span>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center">No recent trips</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Vehicle Modal -->
+{% if session.role in ['fleet_manager', 'admin'] %}
+<div class="modal fade" id="editVehicleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Vehicle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('edit_vehicle', vehicle_id=vehicle.vehicle_id) }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" name="status">
+                            <option value="active" {{ 'selected' if vehicle.status == 'active' else '' }}>Active</option>
+                            <option value="maintenance" {{ 'selected' if vehicle.status == 'maintenance' else '' }}>Under Maintenance</option>
+                            <option value="inactive" {{ 'selected' if vehicle.status == 'inactive' else '' }}>Inactive</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="assigned_driver" class="form-label">Assigned Driver</label>
+                        <input type="email" class="form-control" name="assigned_driver" 
+                               value="{{ vehicle.assigned_driver or '' }}" placeholder="driver@example.com">
+                    </div>
+                    <div class="mb-3">
+                        <label for="mileage" class="form-label">Current Mileage</label>
+                        <input type="number" class="form-control" name="mileage" 
+                               value="{{ vehicle.mileage }}" min="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

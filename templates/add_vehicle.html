@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}Add Vehicle - FleetSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">
+            <i class="fas fa-plus-circle me-2"></i>Add New Vehicle
+        </h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('vehicles') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Vehicles
+            </a>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Vehicle Information</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="addVehicleForm">
+                        <div class="row">
+                            <!-- Left Column -->
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="vehicle_id" class="form-label">Vehicle ID *</label>
+                                    <input type="text" class="form-control" id="vehicle_id" name="vehicle_id" 
+                                           placeholder="e.g., FL001" required>
+                                    <div class="form-text">Unique identifier for the vehicle</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="make" class="form-label">Make *</label>
+                                    <input type="text" class="form-control" id="make" name="make" 
+                                           placeholder="e.g., Ford" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="model" class="form-label">Model *</label>
+                                    <input type="text" class="form-control" id="model" name="model" 
+                                           placeholder="e.g., Transit" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="year" class="form-label">Year *</label>
+                                    <input type="number" class="form-control" id="year" name="year" 
+                                           min="1990" max="2025" placeholder="2023" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="license_plate" class="form-label">License Plate *</label>
+                                    <input type="text" class="form-control" id="license_plate" name="license_plate" 
+                                           placeholder="e.g., ABC-1234" required style="text-transform: uppercase;">
+                                </div>
+                            </div>
+
+                            <!-- Right Column -->
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="fuel_type" class="form-label">Fuel Type</label>
+                                    <select class="form-select" id="fuel_type" name="fuel_type">
+                                        <option value="gasoline" selected>Gasoline</option>
+                                        <option value="diesel">Diesel</option>
+                                        <option value="electric">Electric</option>
+                                        <option value="hybrid">Hybrid</option>
+                                        <option value="cng">CNG</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="mileage" class="form-label">Current Mileage</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" id="mileage" name="mileage" 
+                                               min="0" placeholder="0">
+                                        <span class="input-group-text">miles</span>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="assigned_driver" class="form-label">Assigned Driver</label>
+                                    <input type="email" class="form-control" id="assigned_driver" name="assigned_driver" 
+                                           placeholder="driver@example.com">
+                                    <div class="form-text">Enter driver's email address (optional)</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Vehicle Status</label>
+                                    <div class="mt-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="status" 
+                                                   id="status_active" value="active" checked>
+                                            <label class="form-check-label" for="status_active">
+                                                <span class="badge bg-success me-2">Active</span>
+                                                Ready for use
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="status" 
+                                                   id="status_maintenance" value="maintenance">
+                                            <label class="form-check-label" for="status_maintenance">
+                                                <span class="badge bg-warning me-2">Maintenance</span>
+                                                Under maintenance
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="status" 
+                                                   id="status_inactive" value="inactive">
+                                            <label class="form-check-label" for="status_inactive">
+                                                <span class="badge bg-secondary me-2">Inactive</span>
+                                                Not in use
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Additional Information -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label">Additional Notes</label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                              placeholder="Any additional information about the vehicle..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                                        <i class="fas fa-undo"></i> Reset Form
+                                    </button>
+                                    <div>
+                                        <a href="{{ url_for('vehicles') }}" class="btn btn-outline-secondary me-2">
+                                            Cancel
+                                        </a>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-save"></i> Add Vehicle
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Help Card -->
+            <div class="card shadow mt-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">
+                        <i class="fas fa-info-circle"></i> Help & Guidelines
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Required Fields</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success"></i> Vehicle ID must be unique</li>
+                                <li><i class="fas fa-check text-success"></i> Make and Model are required</li>
+                                <li><i class="fas fa-check text-success"></i> Year must be between 1990-2025</li>
+                                <li><i class="fas fa-check text-success"></i> License plate must be provided</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Best Practices</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-lightbulb text-warning"></i> Use consistent Vehicle ID format</li>
+                                <li><i class="fas fa-lightbulb text-warning"></i> Assign drivers for better tracking</li>
+                                <li><i class="fas fa-lightbulb text-warning"></i> Keep mileage updated regularly</li>
+                                <li><i class="fas fa-lightbulb text-warning"></i> Set appropriate status for each vehicle</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Form validation
+document.getElementById('addVehicleForm').addEventListener('submit', function(e) {
+    const vehicleId = document.getElementById('vehicle_id').value.trim();
+    const make = document.getElementById('make').value.trim();
+    const model = document.getElementById('model').value.trim();
+    const year = document.getElementById('year').value;
+    const licensePlate = document.getElementById('license_plate').value.trim();
+    
+    // Basic validation
+    if (!vehicleId || !make || !model || !year || !licensePlate) {
+        e.preventDefault();
+        alert('Please fill in all required fields marked with *');
+        return;
+    }
+    
+    // Year validation
+    const currentYear = new Date().getFullYear();
+    if (year < 1990 || year > currentYear + 1) {
+        e.preventDefault();
+        alert('Please enter a valid year between 1990 and ' + (currentYear + 1));
+        return;
+    }
+    
+    // Vehicle ID format validation (optional - customize as needed)
+    const vehicleIdPattern = /^[A-Z0-9-_]+$/i;
+    if (!vehicleIdPattern.test(vehicleId)) {
+        e.preventDefault();
+        alert('Vehicle ID should contain only letters, numbers, hyphens, and underscores');
+        return;
+    }
+});
+
+// Auto-uppercase license plate
+document.getElementById('license_plate').addEventListener('input', function() {
+    this.value = this.value.toUpperCase();
+});
+
+// Reset form function
+function resetForm() {
+    if (confirm('Are you sure you want to reset the form? All entered data will be lost.')) {
+        document.getElementById('addVehicleForm').reset();
+        document.getElementById('status_active').checked = true;
+    }
+}
+
+// Auto-generate Vehicle ID suggestion
+document.getElementById('make').addEventListener('blur', function() {
+    const make = this.value.trim();
+    const vehicleIdField = document.getElementById('vehicle_id');
+    
+    if (make && !vehicleIdField.value) {
+        const prefix = make.substring(0, 2).toUpperCase();
+        const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        vehicleIdField.value = prefix + randomNum;
+    }
+});
+
+// Real-time form feedback
+document.addEventListener('DOMContentLoaded', function() {
+    const requiredFields = document.querySelectorAll('input[required]');
+    
+    requiredFields.forEach(field => {
+        field.addEventListener('blur', function() {
+            if (this.value.trim() === '') {
+                this.classList.add('is-invalid');
+            } else {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            }
+        });
+        
+        field.addEventListener('input', function() {
+            if (this.classList.contains('is-invalid') && this.value.trim() !== '') {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.card {
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15) !important;
+}
+
+.form-label {
+    font-weight: 600;
+    color: #5a5c69;
+}
+
+.form-control:focus {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+}
+
+.form-select:focus {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+}
+
+.form-check-input:checked {
+    background-color: #4e73df;
+    border-color: #4e73df;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.is-valid {
+    border-color: #1cc88a;
+}
+
+.is-invalid {
+    border-color: #e74a3b;
+}
+
+.card-header {
+    background-color: #f8f9fc;
+    border-bottom: 1px solid #e3e6f0;
+}
+
+.btn-primary {
+    background-color: #4e73df;
+    border-color: #4e73df;
+}
+
+.btn-primary:hover {
+    background-color: #2e59d9;
+    border-color: #2e59d9;
+}
+</style>
+{% endblock %}

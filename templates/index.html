@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}FleetSync - Fleet Management System{% endblock %}
+
+{% block content %}
+<div class="row align-items-center min-vh-75">
+    <div class="col-lg-6">
+        <div class="hero-content">
+            <h1 class="display-4 fw-bold text-primary mb-4">
+                Welcome to <span class="text-gradient">FleetSync</span>
+            </h1>
+            <p class="lead text-muted mb-4">
+                Streamline your fleet operations with our comprehensive management system. 
+                Track vehicles, manage maintenance, monitor trips, and optimize your fleet's performance.
+            </p>
+            
+            <div class="d-flex flex-column flex-sm-row gap-3 mb-5">
+                <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-rocket me-2"></i>Get Started
+                </a>
+                <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg">
+                    <i class="fas fa-sign-in-alt me-2"></i>Login
+                </a>
+            </div>
+
+            <div class="row text-center">
+                <div class="col-4">
+                    <div class="feature-stat">
+                        <h3 class="text-primary fw-bold">500+</h3>
+                        <p class="text-muted small">Vehicles Managed</p>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="feature-stat">
+                        <h3 class="text-success fw-bold">98%</h3>
+                        <p class="text-muted small">Uptime</p>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="feature-stat">
+                        <h3 class="text-warning fw-bold">24/7</h3>
+                        <p class="text-muted small">Support</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="hero-image text-center">
+            <div class="dashboard-preview">
+                <div class="card border-0 shadow-lg">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-primary rounded-circle p-2 me-3">
+                                <i class="fas fa-tachometer-alt text-white"></i>
+                            </div>
+                            <h5 class="mb-0">Fleet Dashboard</h5>
+                        </div>
+                        
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="mini-stat bg-primary bg-opacity-10 p-3 rounded">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-car text-primary me-2"></i>
+                                        <div>
+                                            <h6 class="mb-0 text-primary">25</h6>
+                                            <small class="text-muted">Vehicles</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="mini-stat bg-success bg-opacity-10 p-3 rounded">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-route text-success me-2"></i>
+                                        <div>
+                                            <h6 class="mb-0 text-success">142</h6>
+                                            <small class="text-muted">Trips</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="mini-stat bg-warning bg-opacity-10 p-3 rounded">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-wrench text-warning me-2"></i>
+                                        <div>
+                                            <h6 class="mb-0 text-warning">8</h6>
+                                            <small class="text-muted">Maintenance</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="mini-stat bg-info bg-opacity-10 p-3 rounded">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-users text-info me-2"></i>
+                                        <div>
+                                            <h6 class="mb-0 text-info">12</h6>
+                                            <small class="text-muted">Drivers</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="row mt-5 pt-5">
+    <div class="col-12 text-center mb-5">
+        <h2 class="fw-bold text-dark">Why Choose FleetSync?</h2>
+        <p class="text-muted">Powerful features to manage your fleet efficiently</p>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 text-center border-0">
+            <div class="card-body p-4">
+                <div class="feature-icon bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                    <i class="fas fa-car fa-2x text-primary"></i>
+                </div>
+                <h5 class="card-title">Vehicle Management</h5>
+                <p class="card-text text-muted">
+                    Track and manage your entire fleet with detailed vehicle information, 
+                    status monitoring, and assignment management.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 text-center border-0">
+            <div class="card-body p-4">
+                <div class="feature-icon bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                    <i class="fas fa-wrench fa-2x text-success"></i>
+                </div>
+                <h5 class="card-title">Maintenance Scheduling</h5>
+                <p class="card-text text-muted">
+                    Schedule and track maintenance activities to keep your fleet 
+                    running smoothly and reduce unexpected breakdowns.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 text-center border-0">
+            <div class="card-body p-4">
+                <div class="feature-icon bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                    <i class="fas fa-route fa-2x text-warning"></i>
+                </div>
+                <h5 class="card-title">Trip Tracking</h5>
+                <p class="card-text text-muted">
+                    Monitor driver trips, track mileage, fuel consumption, 
+                    and generate detailed reports for better fleet optimization.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 text-center border-0">
+            <div class="card-body p-4">
+                <div class="feature-icon bg-info bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                    <i class="fas fa-users fa-2x text-info"></i>
+                </div>
+                <h5 class="card-title">User Management</h5>
+                <p class="card-text text-muted">
+                    Role-based access control for fleet managers, drivers, and administrators 
+                    with secure authentication and authorization.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 text-center border-0">
+            <div class="card-body p-4">
+                <div class="feature-icon bg-danger bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                    <i class="fas fa-bell fa-2x text-danger"></i>
+                </div>
+                <h5 class="card-title">Real-time Notifications</h5>
+                <p class="card-text text-muted">
+                    Get instant notifications about maintenance schedules, 
+                    trip updates, and important fleet events via email and SMS.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 text-center border-0">
+            <div class="card-body p-4">
+                <div class="feature-icon bg-purple bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                    <i class="fas fa-chart-bar fa-2x text-purple"></i>
+                </div>
+                <h5 class="card-title">Analytics & Reports</h5>
+                <p class="card-text text-muted">
+                    Comprehensive reporting and analytics to help you make 
+                    data-driven decisions and optimize fleet performance.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CTA Section -->
+<div class="row mt-5 pt-5">
+    <div class="col-12">
+        <div class="card bg-primary text-white text-center border-0">
+            <div class="card-body p-5">
+                <h3 class="card-title mb-3">Ready to Get Started?</h3>
+                <p class="card-text mb-4">
+                    Join thousands of fleet managers who trust FleetSync to optimize their operations.
+                </p>
+                <a href="{{ url_for('register') }}" class="btn btn-light btn-lg">
+                    <i class="fas fa-rocket me-2"></i>Start Your Free Trial
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.text-gradient {
+    background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.min-vh-75 {
+    min-height: 75vh;
+}
+
+.feature-stat h3 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.dashboard-preview {
+    transform: perspective(1000px) rotateY(-15deg) rotateX(5deg);
+    transition: transform 0.3s ease;
+}
+
+.dashboard-preview:hover {
+    transform: perspective(1000px) rotateY(-10deg) rotateX(2deg);
+}
+
+.mini-stat {
+    transition: transform 0.3s ease;
+}
+
+.mini-stat:hover {
+    transform: translateY(-2px);
+}
+
+.feature-icon {
+    transition: transform 0.3s ease;
+}
+
+.card:hover .feature-icon {
+    transform: scale(1.1);
+}
+
+.bg-purple {
+    background-color: #8b5cf6 !important;
+}
+
+.text-purple {
+    color: #8b5cf6 !important;
+}
+
+@media (max-width: 768px) {
+    .dashboard-preview {
+        transform: none;
+        margin-top: 2rem;
+    }
+    
+    .hero-content {
+        text-align: center;
+    }
+    
+    .display-4 {
+        font-size: 2.5rem;
+    }
+}
+</style>
+{% endblock %}

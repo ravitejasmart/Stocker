@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FleetSync{% endblock %}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #64748b;
+            --success-color: #16a34a;
+            --danger-color: #dc2626;
+            --warning-color: #d97706;
+            --info-color: #0891b2;
+            --dark-color: #1e293b;
+            --light-color: #f8fafc;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-color);
+            color: var(--dark-color);
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+
+        .navbar-nav .nav-link {
+            color: rgba(255,255,255,0.9) !important;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .navbar-nav .nav-link:hover {
+            color: white !important;
+        }
+
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 0.6rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #1d4ed8, var(--primary-color));
+            transform: translateY(-1px);
+        }
+
+        .form-control {
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            padding: 0.75rem 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+        }
+
+        .alert {
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+        }
+
+        .footer {
+            background-color: var(--dark-color);
+            color: white;
+            padding: 2rem 0;
+            margin-top: auto;
+        }
+
+        .main-content {
+            min-height: calc(100vh - 200px);
+            padding: 2rem 0;
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .sidebar .nav-link {
+            color: var(--secondary-color);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .dashboard-stat {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .dashboard-stat.success {
+            background: linear-gradient(135deg, var(--success-color), #22c55e);
+        }
+
+        .dashboard-stat.warning {
+            background: linear-gradient(135deg, var(--warning-color), #f59e0b);
+        }
+
+        .dashboard-stat.info {
+            background: linear-gradient(135deg, var(--info-color), #06b6d4);
+        }
+
+        .table {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .table thead th {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            font-weight: 600;
+            padding: 1rem;
+        }
+
+        .table tbody td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-color: #e2e8f0;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        .loading {
+            display: none;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 1rem 0;
+            }
+            
+            .dashboard-stat {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-truck me-2"></i>FleetSync
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    {% if session.email %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('dashboard') }}">
+                                <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('vehicles') }}">
+                                <i class="fas fa-car me-1"></i>Vehicles
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('maintenance') }}">
+                                <i class="fas fa-wrench me-1"></i>Maintenance
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('trips') }}">
+                                <i class="fas fa-route me-1"></i>Trips
+                            </a>
+                        </li>
+                        {% if session.role == 'admin' %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin_users') }}">
+                                <i class="fas fa-users me-1"></i>Users
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+                
+                <ul class="navbar-nav">
+                    {% if session.email %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user me-1"></i>{{ session.name or session.email }}
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2"></i>Profile</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Settings</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('login') }}">
+                                <i class="fas fa-sign-in-alt me-1"></i>Login
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('register') }}">
+                                <i class="fas fa-user-plus me-1"></i>Register
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container mt-3">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <main class="main-content flex-grow-1">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>FleetSync</h5>
+                    <p class="mb-0">Comprehensive Fleet Management Solution</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="mb-0">&copy; 2024 FleetSync. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script>
+        // Auto-hide alerts after 5 seconds
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                if (alert.querySelector('.btn-close')) {
+                    alert.querySelector('.btn-close').click();
+                }
+            });
+        }, 5000);
+
+        // Add fade-in animation to cards
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {
+                card.classList.add('fade-in');
+            });
+        });
+
+        // Form validation
+        function validateForm(formId, requiredFields) {
+            const form = document.getElementById(formId);
+            if (!form) return true;
+
+            let isValid = true;
+            requiredFields.forEach(field => {
+                const input = form.querySelector(`[name="${field}"]`);
+                if (input && !input.value.trim()) {
+                    input.classList.add('is-invalid');
+                    isValid = false;
+                } else if (input) {
+                    input.classList.remove('is-invalid');
+                }
+            });
+
+            return isValid;
+        }
+
+        // Loading state for forms
+        function showLoading(buttonId) {
+            const button = document.getElementById(buttonId);
+            if (button) {
+                button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+                button.disabled = true;
+            }
+        }
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

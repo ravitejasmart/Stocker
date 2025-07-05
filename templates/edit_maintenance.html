@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Edit Maintenance - FleetSync{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-wrench text-warning"></i> Edit Maintenance Record</h2>
+                <a href="{{ url_for('maintenance') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Maintenance
+                </a>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <form method="POST">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="maintenance_id" class="form-label">Maintenance ID</label>
+                                        <input type="text" class="form-control" id="maintenance_id" name="maintenance_id" 
+                                               value="{{ maintenance.maintenance_id if maintenance else '' }}" readonly>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="vehicle_id" class="form-label">Vehicle ID *</label>
+                                        <select class="form-select" id="vehicle_id" name="vehicle_id" required>
+                                            <option value="">Select Vehicle</option>
+                                            {% for vehicle in vehicles %}
+                                            <option value="{{ vehicle.vehicle_id }}" 
+                                                {{ 'selected' if maintenance and maintenance.vehicle_id == vehicle.vehicle_id else '' }}>
+                                                {{ vehicle.vehicle_id }} - {{ vehicle.make }} {{ vehicle.model }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="maintenance_type" class="form-label">Maintenance Type *</label>
+                                        <select class="form-select" id="maintenance_type" name="maintenance_type" required>
+                                            <option value="">Select Type</option>
+                                            <option value="oil_change" {{ 'selected' if maintenance and maintenance.maintenance_type == 'oil_change' else '' }}>Oil Change</option>
+                                            <option value="tire_rotation" {{ 'selected' if maintenance and maintenance.maintenance_type == 'tire_rotation' else '' }}>Tire Rotation</option>
+                                            <option value="brake_service" {{ 'selected' if maintenance and maintenance.maintenance_type == 'brake_service' else '' }}>Brake Service</option>
+                                            <option value="engine_service" {{ 'selected' if maintenance and maintenance.maintenance_type == 'engine_service' else '' }}>Engine Service</option>
+                                            <option value="transmission" {{ 'selected' if maintenance and maintenance.maintenance_type == 'transmission' else '' }}>Transmission</option>
+                                            <option value="inspection" {{ 'selected' if maintenance and maintenance.maintenance_type == 'inspection' else '' }}>Inspection</option>
+                                            <option value="repair" {{ 'selected' if maintenance and maintenance.maintenance_type == 'repair' else '' }}>Repair</option>
+                                            <option value="other" {{ 'selected' if maintenance and maintenance.maintenance_type == 'other' else '' }}>Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="status" class="form-label">Status</label>
+                                        <select class="form-select" id="status" name="status">
+                                            <option value="scheduled" {{ 'selected' if maintenance and maintenance.status == 'scheduled' else '' }}>Scheduled</option>
+                                            <option value="in_progress" {{ 'selected' if maintenance and maintenance.status == 'in_progress' else '' }}>In Progress</option>
+                                            <option value="completed" {{ 'selected' if maintenance and maintenance.status == 'completed' else '' }}>Completed</option>
+                                            <option value="cancelled" {{ 'selected' if maintenance and maintenance.status == 'cancelled' else '' }}>Cancelled</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="scheduled_date" class="form-label">Scheduled Date *</label>
+                                        <input type="date" class="form-control" id="scheduled_date" name="scheduled_date" 
+                                               value="{{ maintenance.scheduled_date if maintenance else '' }}" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="completed_date" class="form-label">Completed Date</label>
+                                        <input type="date" class="form-control" id="completed_date" name="completed_date" 
+                                               value="{{ maintenance.completed_date if maintenance and maintenance.completed_date else '' }}">
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="estimated_cost" class="form-label">Estimated Cost ($)</label>
+                                        <input type="number" class="form-control" id="estimated_cost" name="estimated_cost" 
+                                               value="{{ maintenance.estimated_cost if maintenance else '0' }}" step="0.01" min="0">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="actual_cost" class="form-label">Actual Cost ($)</label>
+                                        <input type="number" class="form-control" id="actual_cost" name="actual_cost" 
+                                               value="{{ maintenance.actual_cost if maintenance and maintenance.actual_cost else '' }}" step="0.01" min="0">
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">Description</label>
+                                    <textarea class="form-control" id="description" name="description" rows="3" 
+                                              placeholder="Describe the maintenance work...">{{ maintenance.description if maintenance else '' }}</textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label">Notes</label>
+                                    <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                              placeholder="Additional notes...">{{ maintenance.notes if maintenance else '' }}</textarea>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Update Maintenance
+                                    </button>
+                                    <a href="{{ url_for('maintenance') }}" class="btn btn-secondary">Cancel</a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    {% if maintenance %}
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-info-circle"></i> Maintenance Info</h5>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Created:</strong> {{ maintenance.created_at[:10] if maintenance.created_at else 'N/A' }}</p>
+                            <p><strong>Scheduled By:</strong> {{ maintenance.scheduled_by or 'N/A' }}</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge bg-{{ 'success' if maintenance.status == 'completed' else 'warning' if maintenance.status == 'in_progress' else 'secondary' }}">
+                                    {{ maintenance.status.replace('_', ' ').title() }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm mt-3">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-history"></i> Actions</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if maintenance.status == 'scheduled' %}
+                            <button type="button" class="btn btn-warning btn-sm w-100 mb-2" onclick="updateStatus('in_progress')">
+                                <i class="fas fa-play"></i> Start Maintenance
+                            </button>
+                            {% endif %}
+                            {% if maintenance.status == 'in_progress' %}
+                            <button type="button" class="btn btn-success btn-sm w-100 mb-2" onclick="updateStatus('completed')">
+                                <i class="fas fa-check"></i> Mark Completed
+                            </button>
+                            {% endif %}
+                            <button type="button" class="btn btn-danger btn-sm w-100" onclick="updateStatus('cancelled')">
+                                <i class="fas fa-times"></i> Cancel Maintenance
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateStatus(status) {
+    if (confirm('Are you sure you want to update the status to ' + status.replace('_', ' ') + '?')) {
+        document.getElementById('status').value = status;
+        if (status === 'completed') {
+            document.getElementById('completed_date').value = new Date().toISOString().split('T')[0];
+        }
+    }
+}
+</script>
+{% endblock %}

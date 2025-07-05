@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Page Not Found - FleetSync{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <div class="error-page">
+                <div class="error-code mb-4">
+                    <h1 class="display-1 text-primary fw-bold">404</h1>
+                </div>
+                <div class="error-message mb-4">
+                    <h2 class="h4 mb-3">Oops! Page Not Found</h2>
+                    <p class="text-muted mb-4">
+                        The page you're looking for doesn't exist or has been moved. 
+                        Let's get you back on track with your fleet management.
+                    </p>
+                </div>
+                <div class="error-actions">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-tachometer-alt me-1"></i>Go to Dashboard
+                    </a>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-home me-1"></i>Go Home
+                    </a>
+                </div>
+                <div class="mt-4">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgdmlld0JveD0iMCAwIDIwMCAxNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHg9IjMwIiB5PSI2MCIgd2lkdGg9IjE0MCIgaGVpZ2h0PSI3MCIgcng9IjEwIiBmaWxsPSIjZjhmOWZhIiBzdHJva2U9IiNkZWUyZTYiIHN0cm9rZS13aWR0aD0iMiIvPgo8Y2lyY2xlIGN4PSI2MCIgY3k9IjEyMCIgcj0iMTUiIGZpbGw9IiM2Yjc0ODMiLz4KPGJ1aWxkZXIgY3g9IjE0MCIgY3k9IjEyMCIgcj0iMTUiIGZpbGw9IiM2Yjc0ODMiLz4KPHJlY3QgeD0iNzAiIHk9IjMwIiB3aWR0aD0iNjAiIGhlaWdodD0iNDAiIHJ4PSI1IiBmaWxsPSIjMzMzOGE4Ii8+Cjx0ZXh0IHg9IjEwMCIgeT0iNTUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IndoaXRlIiBmb250LXNpemU9IjEyIiBmb250LXdlaWdodD0iYm9sZCI+Rmx1ZXQ8L3RleHQ+CjwvMTdnPg==" 
+                         alt="Fleet Truck" class="img-fluid opacity-50" style="max-width: 200px;">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.error-page {
+    padding: 2rem 0;
+}
+
+.error-code h1 {
+    font-size: 8rem;
+    line-height: 1;
+    text-shadow: 0 0 20px rgba(51, 56, 168, 0.3);
+}
+
+@media (max-width: 768px) {
+    .error-code h1 {
+        font-size: 5rem;
+    }
+}
+</style>
+{% endblock %}
