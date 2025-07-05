@@ -1,580 +1,768 @@
-from flask import Flask, request, session, redirect, url_for, render_template, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 import boto3
-from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import logging
 import os
 import uuid
-from dotenv import load_dotenv
-from boto3.dynamodb.conditions import Attr
+from datetime import datetime
+from boto3.dynamodb.conditions import Key, Attr
+from decimal import Decimal
+import json
 
-# Load environment variables
-load_dotenv()
-
-# ---------------------------------------
-# Flask App Initialization
-# ---------------------------------------
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'fleetsync_secret_key_2024')
+app.secret_key = "stocker_secret_2024"
 
-# ---------------------------------------
-# App Configuration
-# ---------------------------------------
-AWS_REGION_NAME = os.environ.get('AWS_REGION_NAME', 'us-east-1')
+# AWS Configuration
+# For local development - use environment variables
+# For EC2 deployment with IAM role - remove credentials and just use region
+AWS_ACCESS_KEY = os.environ.get('AWS_ACCESS_KEY_ID')
+AWS_SECRET_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
 
-# Email Configuration
-SMTP_SERVER = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
-SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
-SENDER_EMAIL = os.environ.get('SENDER_EMAIL')
-SENDER_PASSWORD = os.environ.get('SENDER_PASSWORD')
-ENABLE_EMAIL = os.environ.get('ENABLE_EMAIL', 'False').lower() == 'true'
+# Set up boto3 session
+if AWS_ACCESS_KEY and AWS_SECRET_KEY:
+    # Local development with explicit credentials
+    boto3_session = boto3.Session(
+        aws_access_key_id=AWS_ACCESS_KEY,
+        aws_secret_access_key=AWS_SECRET_KEY,
+        region_name=AWS_REGION
+    )
+else:
+    # EC2 instance with IAM role
+    boto3_session = boto3.Session(region_name=AWS_REGION)
 
-# Table Names from .env
-USERS_TABLE_NAME = os.environ.get('USERS_TABLE_NAME', 'FleetSyncUsers')
-VEHICLES_TABLE_NAME = os.environ.get('VEHICLES_TABLE_NAME', 'FleetSyncVehicles')
-MAINTENANCE_TABLE_NAME = os.environ.get('MAINTENANCE_TABLE_NAME', 'FleetSyncMaintenance')
-TRIPS_TABLE_NAME = os.environ.get('TRIPS_TABLE_NAME', 'FleetSyncTrips')
+# Create DynamoDB resource
+dynamodb = boto3_session.resource('dynamodb')
 
-# SNS Configuration
-SNS_TOPIC_ARN = os.environ.get('SNS_TOPIC_ARN')
-ENABLE_SNS = os.environ.get('ENABLE_SNS', 'False').lower() == 'true'
+# Define table names
+USER_TABLE = 'stocker_users'
+STOCK_TABLE = 'stocker_stocks'
+TRANSACTION_TABLE = 'stocker_transactions'
+PORTFOLIO_TABLE = 'stocker_portfolio'
 
-# ---------------------------------------
-# AWS Resources
-# ---------------------------------------
-dynamodb = boto3.resource('dynamodb', region_name=AWS_REGION_NAME)
-sns = boto3.client('sns', region_name=AWS_REGION_NAME)
+# Helper class for DynamoDB item serialization
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, Decimal):
+            return float(o)
+        return super(DecimalEncoder, self).default(o)
 
-# DynamoDB Tables
-users_table = dynamodb.Table(USERS_TABLE_NAME)
-vehicles_table = dynamodb.Table(VEHICLES_TABLE_NAME)
-maintenance_table = dynamodb.Table(MAINTENANCE_TABLE_NAME)
-trips_table = dynamodb.Table(TRIPS_TABLE_NAME)
+# Helper function to convert DynamoDB response to Python dict
+def clean_dynamo_response(response):
+    if not response:
+        return None
+    return json.loads(json.dumps(response, cls=DecimalEncoder))
 
-# ---------------------------------------
-# Logging
-# ---------------------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("fleetsync.log"),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+# Create SNS client
+if AWS_ACCESS_KEY and AWS_SECRET_KEY:
+    sns = boto3_session.client('sns')
+else:
+    sns = boto3.client('sns', region_name=AWS_REGION)
 
-# ---------------------------------------
-# Helper Functions
-# ---------------------------------------
-def is_logged_in():
-    return 'email' in session
+# SNS Topic ARNs
+USER_ACCOUNT_TOPIC_ARN = "arn:aws:sns:us-east-1:604665149129:StockerUserAccountTopic"
+TRANSACTION_TOPIC_ARN = "arn:aws:sns:us-east-1:604665149129:StockerTransactionTopic"
 
-def get_user_role(email):
+def send_notification(topic_arn, subject, message, attributes=None):
+    """Send an SNS notification"""
+    if not topic_arn:
+        print(f"Warning: Missing SNS topic ARN for notification: {subject}")
+        return False
+
     try:
-        response = users_table.get_item(Key={'email': email})
-        return response.get('Item', {}).get('role')
+        kwargs = {
+            'TopicArn': topic_arn,
+            'Subject': subject,
+            'Message': message
+        }
+
+        if attributes:
+            kwargs['MessageAttributes'] = attributes
+        response = sns.publish(**kwargs)
+        return True
     except Exception as e:
-        logger.error(f"Error fetching role: {e}")
-    return None
+        print(f"SNS notification failed: {str(e)}")
+        return False
+# ------------------- Data Access Functions ------------------- #
+def get_user_by_email(email):
+    """Get user by email"""
+    table = dynamodb.Table(USER_TABLE)
+    response = table.get_item(Key={'email': email})
+    return response.get('Item')
 
-def send_email(to_email, subject, body):
-    if not ENABLE_EMAIL:
-        logger.info(f"[Email Skipped] Subject: {subject} to {to_email}")
-        return
+def create_user(username, email, password, role):
+    """Create a new user"""
+    table = dynamodb.Table(USER_TABLE)
+    user = {
+        'id': str(uuid.uuid4()),
+        'username': username,
+        'email': email,
+        'password': password,
+        'role': role
+    }
+    table.put_item(Item=user)
+    return user
 
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
+def get_all_stocks():
+    """Get all stocks"""
+    table = dynamodb.Table(STOCK_TABLE)
+    response = table.scan()
+    return response.get('Items', [])
 
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
-        server.quit()
+def get_stock_by_id(stock_id):
+    """Get stock by ID"""
+    table = dynamodb.Table(STOCK_TABLE)
+    response = table.get_item(Key={'id': stock_id})
+    return response.get('Item')
 
-        logger.info(f"Email sent to {to_email}")
-    except Exception as e:
-        logger.error(f"Email sending failed: {e}")
+def get_traders():
+    """Get all traders"""
+    table = dynamodb.Table(USER_TABLE)
+    response = table.scan(
+        FilterExpression=Attr('role').eq('trader')
+    )
+    return response.get('Items', [])
 
-def publish_to_sns(message, subject="FleetSync Notification"):
-    if not ENABLE_SNS:
-        logger.info("[SNS Skipped] Message: {}".format(message))
-        return
+def delete_trader_by_id(trader_id):
+    """Delete a trader by ID"""
+    # First, get the user's email
+    user = get_user_by_id(trader_id)
+    if not user:
+        print(f"User with ID {trader_id} not found")
+        return False
 
-    try:
-        response = sns.publish(
-            TopicArn=SNS_TOPIC_ARN,
-            Message=message,
-            Subject=subject
+    email = user.get('email')
+    if not email:
+        print(f"User with ID {trader_id} has no email")
+        return False
+
+    # 1. Delete the user
+    user_table = dynamodb.Table(USER_TABLE)
+    user_table.delete_item(Key={'email': trader_id})
+    for item in portfolio_response.get('Items', []):
+        portfolio_table.delete_item(
+            Key={
+                'user_id': trader_id,
+                'stock_id': item['stock_id']
+            }
         )
-        logger.info(f"SNS published: {response['MessageId']}")
-    except Exception as e:
-        logger.error(f"SNS publish failed: {e}")
+    # 2. Delete all portfolio items for the user
+    portfolio_table = dynamodb.Table(PORTFOLIO_TABLE)
+    portfolio_response = portfolio_table.query(
+        KeyConditionExpression=Key('user_id').eq(trader_id)
+    )
 
-def require_role(required_role):
-    def decorator(f):
-        def decorated_function(*args, **kwargs):
-            if not is_logged_in():
-                flash('Please log in to access this page', 'warning')
-                return redirect(url_for('login'))
-            
-            user_role = session.get('role')
-            if user_role != required_role and required_role != 'any':
-                flash('Access denied. Insufficient permissions.', 'danger')
-                return redirect(url_for('dashboard'))
-            
-            return f(*args, **kwargs)
-        decorated_function.__name__ = f.__name__
-        return decorated_function
-    return decorator
+    # 3. We might want to keep transactions for audit purposes
+    return True
 
-# ---------------------------------------
-# Routes
-# ---------------------------------------
+def get_transactions():
+    """Get all transactions with user and stock details"""
+    table = dynamodb.Table(TRANSACTION_TABLE)
+    transactions = table.scan().get('Items', [])
 
-# Home Page
+    # Get user and stock details for each transaction
+    for transaction in transactions:
+        user = get_user_by_id(transaction['user_id'])
+        stock = get_stock_by_id(transaction['stock_id'])
+
+        if user:
+            transaction['user'] = user
+
+        if stock:
+            transaction['stock'] = stock
+
+    return transactions
+
+def get_user_by_id(user_id):
+    """Get user by ID"""
+    table = dynamodb.Table(USER_TABLE)
+    response = table.scan(
+        FilterExpression=Attr('id').eq(user_id)
+    )
+    items = response.get('Items', [])
+    return items[0] if items else None
+
+def get_portfolios():
+    """Get all portfolios with user and stock details"""
+    table = dynamodb.Table(PORTFOLIO_TABLE)
+    portfolios = table.scan().get('Items', [])
+
+    # Get user and stock details for each portfolio item
+    for portfolio in portfolios:
+        user = get_user_by_id(portfolio['user_id'])
+        stock = get_stock_by_id(portfolio['stock_id'])
+
+        if user:
+            portfolio['user'] = user
+
+        if stock:
+            portfolio['stock'] = stock
+
+    return portfolios
+
+def get_user_portfolio(user_id):
+    """Get portfolio for a specific user"""
+    table = dynamodb.Table(PORTFOLIO_TABLE)
+    response = table.query(
+        KeyConditionExpression=Key('user_id').eq(user_id)
+    )
+
+    portfolio_items = response.get('Items', [])
+
+    # Get stock details for each portfolio item
+    for item in portfolio_items:
+        stock = get_stock_by_id(item['stock_id'])
+        if stock:
+            item['stock'] = stock
+
+    return portfolio_items
+
+def get_user_transactions(user_id):
+    """Get transactions for a specific user"""
+    table = dynamodb.Table(TRANSACTION_TABLE)
+    response = table.scan(
+        FilterExpression=Attr('user_id').eq(user_id)
+    )
+
+    transactions = response.get('Items', [])
+
+    # Get stock details for each transaction
+    for transaction in transactions:
+        stock = get_stock_by_id(transaction['stock_id'])
+        if stock:
+            transaction['stock'] = stock
+
+    # Sort by transaction_date in descending order
+    transactions.sort(key=lambda x: x.get('transaction_date', ''), reverse=True)
+
+    return transactions
+
+def get_portfolio_item(user_id, stock_id):
+    """Get a specific portfolio item"""
+    table = dynamodb.Table(PORTFOLIO_TABLE)
+    response = table.get_item(
+        Key={
+            'user_id': user_id,
+            'stock_id': stock_id
+        }
+    )
+    return response.get('Item')
+
+def create_transaction(user_id, stock_id, action, quantity, price, status='completed'):
+    """Create a new transaction"""
+    table = dynamodb.Table(TRANSACTION_TABLE)
+    transaction_id = str(uuid.uuid4())
+
+    transaction = {
+        'id': transaction_id,
+        'user_id': user_id,
+        'stock_id': stock_id,
+        'action': action,
+        'quantity': quantity,
+        'price': Decimal(str(price)),
+        'status': status,
+        'transaction_date': datetime.now().isoformat()
+    }
+
+    table.put_item(Item=transaction)
+    return transaction
+
+def update_portfolio(user_id, stock_id, quantity, average_price):
+    """Update or create a portfolio item"""
+    table = dynamodb.Table(PORTFOLIO_TABLE)
+
+    # Ensure quantity and average_price are Decimal objects
+    if not isinstance(quantity, Decimal):
+        quantity = Decimal(str(quantity))
+
+    if not isinstance(average_price, Decimal):
+        average_price = Decimal(str(average_price))
+
+    # Check if portfolio item exists
+    existing = get_portfolio_item(user_id, stock_id)
+
+    if existing and quantity > 0:
+        # Update existing portfolio item
+        table.update_item(
+            Key={
+                'user_id': user_id,
+                'stock_id': stock_id
+            },
+            UpdateExpression="set quantity=:q, average_price=:p",
+            ExpressionAttributeValues={
+                ':q': quantity,
+                ':p': Decimal(str(average_price))
+            }
+        )
+    elif existing and quantity <= 0:
+        # Delete portfolio item if quantity is zero or negative
+        table.delete_item(
+            Key={
+                'user_id': user_id,
+                'stock_id': stock_id
+            }
+        )
+    elif quantity > 0:
+        # Create new portfolio item
+        portfolio_item = {
+            'user_id': user_id,
+            'stock_id': stock_id,
+            'quantity': quantity,
+            'average_price': Decimal(str(average_price))
+        }
+        table.put_item(Item=portfolio_item)
+# ------------------- Routes ------------------- #
 @app.route('/')
 def index():
-    if is_logged_in():
-        return redirect(url_for('dashboard'))
     return render_template('index.html')
 
-# Register User (Fleet Manager/Driver/Admin)
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if is_logged_in():
-        return redirect(url_for('dashboard'))
-    
-    if request.method == 'POST':
-        # Form validation
-        required_fields = ['name', 'email', 'password', 'role']
-        for field in required_fields:
-            if field not in request.form or not request.form[field]:
-                flash(f'Please fill in the {field} field', 'danger')
-                return render_template('register.html')
-        
-        # Check if passwords match
-        if request.form['password'] != request.form.get('confirm_password', ''):
-            flash('Passwords do not match', 'danger')
-            return render_template('register.html')
-        
-        name = request.form['name']
-        email = request.form['email']
-        password = generate_password_hash(request.form['password'])
-        role = request.form['role']  # 'fleet_manager', 'driver', 'admin'
-        phone = request.form.get('phone', '')
-        license_number = request.form.get('license_number', '')
-        
-        # Check if user already exists
-        existing_user = users_table.get_item(Key={'email': email}).get('Item')
-        if existing_user:
-            flash('Email already registered', 'danger')
-            return render_template('register.html')
-
-        # Add user to DynamoDB
-        user_item = {
-            'email': email,
-            'name': name,
-            'password': password,
-            'role': role,
-            'phone': phone,
-            'login_count': 0,
-            'status': 'active',
-            'created_at': datetime.now().isoformat(),
-        }
-        
-        # Add license number for drivers
-        if role == 'driver' and license_number:
-            user_item['license_number'] = license_number
-        
-        users_table.put_item(Item=user_item)
-        
-        # Send welcome email
-        welcome_msg = f"Welcome to FleetSync, {name}! Your {role} account has been created successfully."
-        send_email(email, "Welcome to FleetSync", welcome_msg)
-        
-        # Send admin notification
-        publish_to_sns(f'New {role} registered: {name} ({email})', 'New User Registration')
-        
-        flash('Registration successful. Please log in.', 'success')
-        return redirect(url_for('login'))
-    
-    return render_template('register.html')
-
-# Login User
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if is_logged_in():
-        return redirect(url_for('dashboard'))
-
     if request.method == 'POST':
+        role = request.form.get('role')
         email = request.form.get('email')
         password = request.form.get('password')
-        
-        if not email or not password:
-            flash('Email and password are required', 'danger')
-            return render_template('login.html')
 
-        # Validate user credentials
-        user = users_table.get_item(Key={'email': email}).get('Item')
+        user = get_user_by_email(email)
+        print(f"Trying to login with: {email} ({role})")
 
-        if user and check_password_hash(user['password'], password):
-            if user.get('status') != 'active':
-                flash('Account is inactive. Contact administrator.', 'warning')
-                return render_template('login.html')
-                
-            session['email'] = email
+        if user and user['password'] == password and user['role'] == role:
+            print("Login successful!")
+            session['email'] = user['email']
             session['role'] = user['role']
-            session['name'] = user.get('name', '')
-            
-            # Update login count
-            try:
-                users_table.update_item(
-                    Key={'email': email},
-                    UpdateExpression='SET login_count = if_not_exists(login_count, :zero) + :inc, last_login = :now',
-                    ExpressionAttributeValues={
-                        ':inc': 1, 
-                        ':zero': 0, 
-                        ':now': datetime.now().isoformat()
+            session['user_id'] = user['id']
+
+            # Send login notification
+            send_notification(
+                USER_ACCOUNT_TOPIC_ARN,
+                'User Login',
+                f"User logged in: {user['username']} ({email}) as {role}",
+                {
+                    'event_type': {
+                        'DataType': 'String',
+                        'StringValue': 'LOGIN'
+                    },
+                    'user_role': {
+                        'DataType': 'String',
+                        'StringValue': role
                     }
-                )
-            except Exception as e:
-                logger.error(f"Failed to update login info: {e}")
-            
-            flash(f'Welcome back, {user.get("name", "")}!', 'success')
-            return redirect(url_for('dashboard'))
+                }
+            )
+
+            flash('Login successful!', 'success')
+            return redirect(url_for('dashboard_admin' if role == 'admin' else 'dashboard_trader'))
         else:
-            flash('Invalid email or password.', 'danger')
+            print("Login failed.")
+            flash('Invalid credentials or role mismatch.', 'danger')
+            return redirect(url_for('login'))
 
     return render_template('login.html')
 
-# Dashboard
-@app.route('/dashboard')
-@require_role('any')
-def dashboard():
-    user_role = session.get('role')
-    email = session.get('email')
-    
-    dashboard_data = {
-        'role': user_role,
-        'name': session.get('name'),
-        'email': email
-    }
-    
-    try:
-        if user_role == 'fleet_manager':
-            # Get vehicle count and recent activities
-            vehicles_response = vehicles_table.scan()
-            vehicles_items = vehicles_response.get('Items', [])
-            dashboard_data['total_vehicles'] = len(vehicles_items)
-            dashboard_data['active_vehicles'] = len([v for v in vehicles_items if v.get('status') == 'active'])
-            
-        elif user_role == 'driver':
-            # Get assigned vehicles and recent trips
-            vehicles_response = vehicles_table.scan(
-                FilterExpression=Attr('assigned_driver').eq(email)
-            )
-            dashboard_data['assigned_vehicles'] = vehicles_response.get('Items', [])
-            
-        elif user_role == 'admin':
-            # Get system overview
-            users_response = users_table.scan()
-            vehicles_response = vehicles_table.scan()
-            dashboard_data['total_users'] = len(users_response.get('Items', []))
-            dashboard_data['total_vehicles'] = len(vehicles_response.get('Items', []))
-            
-    except Exception as e:
-        logger.error(f"Dashboard data fetch error: {e}")
-        flash('Error loading dashboard data', 'warning')
-    
-    return render_template('dashboard.html', data=dashboard_data)
-
-# Vehicle Management Routes
-@app.route('/vehicles')
-@require_role('any')
-def vehicles():
-    try:
-        if session.get('role') == 'driver':
-            # Drivers see only assigned vehicles
-            response = vehicles_table.scan(
-                FilterExpression=Attr('assigned_driver').eq(session.get('email'))
-            )
-        else:
-            # Fleet managers and admins see all vehicles
-            response = vehicles_table.scan()
-        
-        vehicles_list = response.get('Items', [])
-        logger.info(f"Vehicles fetched successfully: {len(vehicles_list)} vehicles")
-        return render_template('vehicles.html', vehicles=vehicles_list)
-    except Exception as e:
-        logger.error(f"Error fetching vehicles: {str(e)}")
-        flash('Error loading vehicles', 'danger')
-        return redirect(url_for('dashboard'))
-
-@app.route('/add_vehicle', methods=['GET', 'POST'])
-@require_role('fleet_manager')
-def add_vehicle():
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
     if request.method == 'POST':
-        required_fields = ['vehicle_id', 'make', 'model', 'year', 'license_plate']
-        for field in required_fields:
-            if not request.form.get(field):
-                flash(f'Please fill in the {field} field', 'danger')
-                return render_template('add_vehicle.html')
-        
-        vehicle_id = request.form['vehicle_id']
-        
-        # Check if vehicle already exists
-        existing_vehicle = vehicles_table.get_item(Key={'vehicle_id': vehicle_id}).get('Item')
-        if existing_vehicle:
-            flash('Vehicle ID already exists', 'danger')
-            return render_template('add_vehicle.html')
-        
-        vehicle_item = {
-            'vehicle_id': vehicle_id,
-            'make': request.form['make'],
-            'model': request.form['model'],
-            'year': int(request.form['year']),
-            'license_plate': request.form['license_plate'],
-            'status': 'active',
-            'mileage': int(request.form.get('mileage', 0)),
-            'fuel_type': request.form.get('fuel_type', 'gasoline'),
-            'assigned_driver': request.form.get('assigned_driver', ''),
-            'created_by': session.get('email'),
-            'created_at': datetime.now().isoformat(),
-        }
-        
-        vehicles_table.put_item(Item=vehicle_item)
-        
-        # Send notification
-        publish_to_sns(f'New vehicle added: {vehicle_item["make"]} {vehicle_item["model"]} ({vehicle_id})', 'Vehicle Added')
-        
-        flash('Vehicle added successfully', 'success')
-        return redirect(url_for('vehicles'))
-    
-    return render_template('add_vehicle.html')
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+        role = request.form['role']
 
-# Maintenance Management Routes
-@app.route('/maintenance')
-@require_role('any')
-def maintenance():
-    try:
-        response = maintenance_table.scan()
-        maintenance_list = response.get('Items', [])
-        
-        # Sort by scheduled date
-        maintenance_list.sort(key=lambda x: x.get('scheduled_date', ''), reverse=True)
-        
-        logger.info(f"Maintenance records fetched successfully: {len(maintenance_list)} records")
-        return render_template('maintenance.html', maintenance_records=maintenance_list)
-    except Exception as e:
-        logger.error(f"Error fetching maintenance records: {str(e)}")
-        flash('Error loading maintenance records', 'danger')
-        return redirect(url_for('dashboard'))
+        existing_user = get_user_by_email(email)
+        if existing_user:
+            flash('User already exists. Please login.', 'warning')
+            return redirect(url_for('login'))
 
-@app.route('/schedule_maintenance', methods=['GET', 'POST'])
-@require_role('fleet_manager')
-def schedule_maintenance():
-    if request.method == 'POST':
-        required_fields = ['vehicle_id', 'maintenance_type', 'scheduled_date']
-        for field in required_fields:
-            if not request.form.get(field):
-                flash(f'Please fill in the {field} field', 'danger')
-                return render_template('schedule_maintenance.html')
-        
-        maintenance_id = str(uuid.uuid4())
-        vehicle_id = request.form['vehicle_id']
-        maintenance_type = request.form['maintenance_type']
-        scheduled_date = request.form['scheduled_date']
-        
-        maintenance_item = {
-            'maintenance_id': maintenance_id,
-            'vehicle_id': vehicle_id,
-            'maintenance_type': maintenance_type,
-            'scheduled_date': scheduled_date,
-            'status': 'scheduled',
-            'description': request.form.get('description', ''),
-            'estimated_cost': float(request.form.get('estimated_cost', 0)),
-            'scheduled_by': session.get('email'),
-            'created_at': datetime.now().isoformat(),
-        }
-        
-        maintenance_table.put_item(Item=maintenance_item)
-        
-        # Send notification
-        publish_to_sns(
-            f'Maintenance scheduled for vehicle {vehicle_id}: {maintenance_type} on {scheduled_date}',
-            'Maintenance Scheduled'
-        )
-        
-        flash('Maintenance scheduled successfully', 'success')
-        return redirect(url_for('maintenance'))
-    
-    # Get vehicles for dropdown
-    try:
-        vehicles_response = vehicles_table.scan()
-        vehicles_list = vehicles_response.get('Items', [])
-    except Exception as e:
-        logger.error(f"Error fetching vehicles for dropdown: {e}")
-        vehicles_list = []
-    
-    return render_template('schedule_maintenance.html', vehicles=vehicles_list)
+        new_user = create_user(username, email, password, role)
 
-# Trip Management Routes
-@app.route('/trips')
-@require_role('any')
-def trips():
-    try:
-        if session.get('role') == 'driver':
-            # Drivers see only their trips
-            response = trips_table.scan(
-                FilterExpression=Attr('driver_email').eq(session.get('email'))
-            )
-        else:
-            # Fleet managers and admins see all trips
-            response = trips_table.scan()
-        
-        trips_list = response.get('Items', [])
-        trips_list.sort(key=lambda x: x.get('start_time', ''), reverse=True)
-        
-        logger.info(f"Trips fetched successfully: {len(trips_list)} trips")
-        return render_template('trips.html', trips=trips_list)
-    except Exception as e:
-        logger.error(f"Error fetching trips: {str(e)}")
-        flash('Error loading trips', 'danger')
-        return redirect(url_for('dashboard'))
-
-
-@app.route('/log_trip', methods=['GET', 'POST'])
-@require_role('driver')
-def log_trip():
-    # TEST fallback session (remove in production)
-    if 'email' not in session:
-        session['email'] = 'john@example.com'  # test email
-    if 'name' not in session:
-        session['name'] = 'John Doe'
-
-    if request.method == 'POST':
-        required_fields = ['vehicle_id', 'start_location', 'end_location', 'start_mileage', 'end_mileage']
-        for field in required_fields:
-            if not request.form.get(field):
-                flash(f'Please fill in the {field} field', 'danger')
-                # Get vehicles again for the form
-                try:
-                    vehicles_response = vehicles_table.scan(
-                        FilterExpression=Attr('assigned_driver').eq(session.get('email'))
-                    )
-                    vehicles_list = vehicles_response.get('Items', [])
-                except Exception as e:
-                    logger.error(f"Error fetching vehicles for form reload: {e}")
-                    vehicles_list = []
-                return render_template('log_trip.html', vehicles=vehicles_list)
-        
-        trip_id = str(uuid.uuid4())
-        
-        trip_item = {
-            'trip_id': trip_id,
-            'vehicle_id': request.form['vehicle_id'],
-            'driver_email': session.get('email'),
-            'driver_name': session.get('name'),
-            'start_location': request.form['start_location'],
-            'end_location': request.form['end_location'],
-            'start_mileage': int(request.form['start_mileage']),
-            'end_mileage': int(request.form['end_mileage']),
-            'distance': int(request.form['end_mileage']) - int(request.form['start_mileage']),
-            'fuel_used': float(request.form.get('fuel_used', 0)),
-            'purpose': request.form.get('purpose', ''),
-            'notes': request.form.get('notes', ''),
-            'start_time': datetime.now().isoformat(),
-            'status': 'completed'
-        }
-        
-        trips_table.put_item(Item=trip_item)
-        
-        # Update vehicle mileage
-        try:
-            vehicles_table.update_item(
-                Key={'vehicle_id': request.form['vehicle_id']},
-                UpdateExpression='SET mileage = :mileage',
-                ExpressionAttributeValues={':mileage': int(request.form['end_mileage'])}
-            )
-        except Exception as e:
-            logger.error(f"Failed to update vehicle mileage: {e}")
-        
-        flash('Trip logged successfully', 'success')
-        return redirect(url_for('trips'))
-    
-    # Get assigned vehicles for driver
-    try:
-        vehicles_response = vehicles_table.scan(
-            FilterExpression=Attr('assigned_driver').eq(session.get('email'))
-        )
-        vehicles_list = vehicles_response.get('Items', [])
-        logger.info(f"Fetched vehicles for {session.get('email')}: {len(vehicles_list)} vehicles")
-    except Exception as e:
-        logger.error(f"Error fetching vehicles: {str(e)}")
-        vehicles_list = []
-    
-    return render_template('log_trip.html', vehicles=vehicles_list)
-
-# Admin Routes
-@app.route('/admin/users')
-@require_role('admin')
-def admin_users():
-    try:
-        response = users_table.scan()
-        users_list = response.get('Items', [])
-        logger.info(f"Admin users fetched successfully: {len(users_list)} users")
-        return render_template('admin_users.html', users=users_list)
-    except Exception as e:
-        logger.error(f"Error fetching users: {str(e)}")
-        flash('Error loading users', 'danger')
-        return redirect(url_for('dashboard'))
-
-# API Routes for mobile/AJAX
-@app.route('/api/vehicle_status/<vehicle_id>')
-@require_role('any')
-def api_vehicle_status(vehicle_id):
-    try:
-        vehicle = vehicles_table.get_item(Key={'vehicle_id': vehicle_id}).get('Item')
-        if vehicle:
-            return jsonify({
-                'status': 'success',
-                'data': {
-                    'vehicle_id': vehicle['vehicle_id'],
-                    'status': vehicle.get('status', 'unknown'),
-                    'mileage': vehicle.get('mileage', 0),
-                    'assigned_driver': vehicle.get('assigned_driver', '')
+        # Send account creation notification
+        send_notification(
+            USER_ACCOUNT_TOPIC_ARN,
+            'New User Registration',
+            f"New user registered: {username} ({email}) as {role}",
+            {
+                'event_type': {
+                    'DataType': 'String',
+                    'StringValue': 'ACCOUNT_CREATION'
+                },
+                'user_role': {
+                    'DataType': 'String',
+                    'StringValue': role
                 }
-            })
-        else:
-            return jsonify({'status': 'error', 'message': 'Vehicle not found'}), 404
-    except Exception as e:
-        logger.error(f"API error: {str(e)}")
-        return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
+            }
+        )
 
-# Logout
+        flash(f"Account created for {username}", 'success')
+        return redirect(url_for('login'))
+
+    return render_template('signup.html')
+
+@app.route('/dashboard_admin')
+def dashboard_admin():
+    if 'email' not in session or session.get('role') != 'admin':
+        flash("Access denied. Admins only.", "danger")
+        return redirect(url_for('login'))
+
+    user = get_user_by_email(session['email'])
+    stocks = get_all_stocks()
+    return render_template('dashboard_admin.html', user=user, market_data=stocks)
+
+@app.route('/dashboard_trader')
+def dashboard_trader():
+    if 'email' not in session or session.get('role') != 'trader':
+        flash("Access denied. Traders only.", "danger")
+        return redirect(url_for('login'))
+
+    user = get_user_by_email(session.get('email'))
+    stocks = get_all_stocks()
+    return render_template('dashboard_trader.html', user=user, market_data=stocks)
+
+@app.route('/service01')
+def service01():
+    if 'email' not in session or session.get('role') != 'admin':
+        flash("Access denied. Admins only.", "danger")
+        return redirect(url_for('login'))      
+
+    user = get_user_by_email(session.get('email'))
+    if not user:
+       session.clear()
+       flash("Your account no longer exists.", "danger")
+       return redirect(url_for('login')) 
+
+    traders = get_traders()
+
+    # Calculate portfolio values for each trader
+    for trader in traders:
+        trader_portfolio = get_user_portfolio(trader['id'])
+        portfolio_value = 0
+        for item in trader_portfolio:
+            portfolio_value += float(item['quantity']) * float(item['stock']['price'])
+        # Add this as an attribute to the trader object
+        trader['total_portfolio_value'] = portfolio_value
+
+    return render_template('service-details-1.html', traders=traders)   
+
+@app.route('/delete_trader/<string:trader_id>', methods=['POST'])
+def delete_trader(trader_id): 
+    if 'email' not in session or session.get('role') != 'admin':
+        flash("Access denied. Admins only.", "danger")
+        return redirect(url_for('login'))
+
+    user = get_user_by_email(session.get('email'))
+
+    if not user:
+       session.clear()
+       flash("Your account no longer exists.", "danger")
+       return redirect(url_for('login'))
+
+    success = delete_trader_by_id(trader_id)
+    if success:
+        flash("Trader deleted successfully.", "success")
+    else:
+        flash("Failed to delete trader.", "danger")
+
+    return redirect(url_for('service01'))
+
+@app.route('/service02')
+def service02():
+    if 'email' not in session or session.get('role') != 'admin':
+        flash("Access denied. Admins only.", "danger")
+        return redirect(url_for('login'))
+
+    user = get_user_by_email(session.get('email'))   
+    if not user:
+       session.clear()
+       flash("Your account no longer exists.", "danger")
+       return redirect(url_for('login'))
+
+    transactions = get_transactions()
+    for transaction in transactions:
+        if 'transaction_date' in transaction and transaction['transaction_date']:
+            try:
+                # Convert ISO string to datetime object
+                transaction['transaction_date'] = datetime.fromisoformat(transaction['transaction_date'])
+            except (ValueError, TypeError):
+                # If conversion fails, set to None
+                transaction['transaction_date'] = None
+
+    return render_template('service-details-2.html', transactions=transactions)
+
+@app.route('/service03')
+def service03():
+    if 'email' not in session or session.get('role') != 'admin':
+        flash("Access denied. Admins only.", "danger")
+        return redirect(url_for('login'))
+
+    user = get_user_by_email(session.get('email'))   
+    if not user:
+       session.clear()
+       flash("Your account no longer exists.", "danger")
+       return redirect(url_for('login'))    
+
+    portfolios = get_portfolios()
+
+    # Calculate total portfolio value
+    total_portfolio_value = 0
+    for portfolio in portfolios:
+        if 'stock' in portfolio:
+            total_portfolio_value += float(portfolio['quantity']) * float(portfolio['stock']['price'])
+
+    return render_template('service-details-3.html', 
+                          portfolios=portfolios, 
+                          total_portfolio_value=total_portfolio_value)
+
+@app.route('/service04')
+def service04():
+    if 'email' not in session or session.get('role') != 'trader':
+        flash("Access denied. Traders only.", "danger")
+        return redirect(url_for('login'))
+
+    user = get_user_by_email(session.get('email'))
+    if not user:
+       session.clear()
+       flash("Your account no longer exists.", "danger")
+       return redirect(url_for('login'))
+
+    stocks = get_all_stocks()
+    return render_template('service-details-4.html', user=user, stocks=stocks)
+
+@app.route('/service04/buy_stock/<string:stock_id>', methods=['GET', 'POST'])
+def buy_stock(stock_id):
+    if 'email' not in session or session.get('role') != 'trader':
+        flash("Access denied. Traders only.", "danger")
+        return redirect(url_for('login'))
+
+    user = get_user_by_email(session.get('email'))   
+    if not user:
+       session.clear()
+       flash("Your account no longer exists.", "danger")
+       return redirect(url_for('login'))
+
+    user = get_user_by_email(session.get('email'))
+    stock = get_stock_by_id(stock_id)
+
+    if not stock:
+        flash("Stock not found.", "danger")
+        return redirect(url_for('service04'))
+
+    if request.method == 'POST':
+        quantity = int(request.form.get('quantity', 0))
+
+        if quantity <= 0:
+            flash("Please enter a valid quantity.", "danger")
+            return redirect(url_for('buy_stock', stock_id=stock_id))
+
+        # Create transaction record
+        transaction = create_transaction(
+            user_id=user['id'],
+            stock_id=stock_id,
+            action='buy',
+            quantity=quantity,
+            price=float(stock['price']),
+            status='completed'
+        )
+
+        # Update or create portfolio entry
+        portfolio_entry = get_portfolio_item(user['id'], stock_id)
+
+        if portfolio_entry:
+            # Update existing portfolio entry
+            quantity_decimal = Decimal(str(quantity))
+            portfolio_quantity = Decimal(str(portfolio_entry['quantity']))
+            portfolio_avg_price = Decimal(str(portfolio_entry['average_price']))
+            stock_price = Decimal(str(stock['price']))
+
+            total_value = (portfolio_quantity * portfolio_avg_price) + (quantity_decimal * stock_price)
+            total_quantity = portfolio_quantity + quantity_decimal
+            avg_price = total_value / total_quantity
+
+            update_portfolio(
+                user_id=user['id'],
+                stock_id=stock_id,
+                quantity=Decimal(str(quantity)),
+                average_price=avg_price
+            )
+        else:
+            # Create new portfolio entry
+            update_portfolio(
+                user_id=user['id'],
+                stock_id=stock_id,
+                quantity=Decimal(str(quantity)),
+                average_price=Decimal(str(stock['price']))
+            )
+
+        # Send transaction notification
+        send_notification(
+            TRANSACTION_TOPIC_ARN,
+            f"Stock Purchase: {stock['symbol']}",
+            f"User {user['username']} purchased {quantity} shares of {stock['symbol']} at ₹{stock['price']} per share.",
+            {
+                'event_type': {
+                    'DataType': 'String',
+                    'StringValue': 'BUY'
+                },
+                'stock_symbol': {
+                    'DataType': 'String',
+                    'StringValue': stock['symbol']
+                },
+                'quantity': {
+                    'DataType': 'Number',
+                    'StringValue': str(quantity)
+                }
+            }
+        )
+
+        flash(f"Successfully purchased {quantity} shares of {stock['symbol']}!", "success")
+        return redirect(url_for('service05'))
+
+    return render_template('buy_stock.html', user=user, stock=stock)
+
+@app.route('/service04/sell_stock/<string:stock_id>', methods=['GET', 'POST'])
+def sell_stock(stock_id):
+    if 'email' not in session or session.get('role') != 'trader':
+        flash("Access denied. Traders only.", "danger")
+        return redirect(url_for('login'))
+    user = get_user_by_email(session.get('email'))
+    if not user:
+       session.clear()
+       flash("Your account no longer exists.", "danger")
+       return redirect(url_for('login'))
+
+    user = get_user_by_email(session.get('email'))
+    stock = get_stock_by_id(stock_id)
+
+    if not stock:
+        flash("Stock not found.", "danger")
+        return redirect(url_for('service04'))
+
+    # Check if user owns this stock
+    portfolio_entry = get_portfolio_item(user['id'], stock_id)
+
+    if not portfolio_entry:
+        flash("You don't own any shares of this stock.", "danger")
+        return redirect(url_for('service04'))
+
+    if request.method == 'POST':
+        quantity = int(request.form.get('quantity', 0))
+
+        if quantity <= 0:
+            flash("Please enter a valid quantity.", "danger")
+            return redirect(url_for('sell_stock', stock_id=stock_id))
+
+        if quantity > portfolio_entry['quantity']:
+            flash("You don't have enough shares to sell.", "danger")
+            return redirect(url_for('sell_stock', stock_id=stock_id))
+
+        # Create transaction record
+        transaction = create_transaction(
+            user_id=user['id'],
+            stock_id=stock_id,
+            action='sell',
+            quantity=quantity,
+            price=float(stock['price']),
+            status='completed'
+        )
+
+        # Update portfolio entry
+        remaining_quantity = portfolio_entry['quantity'] - quantity
+
+        update_portfolio(
+            user_id=user['id'],
+            stock_id=stock_id,
+            quantity=remaining_quantity,
+            average_price=float(portfolio_entry['average_price']) if remaining_quantity > 0 else 0
+        )
+
+        # Send transaction notification
+        send_notification(
+            TRANSACTION_TOPIC_ARN,
+            f"Stock Purchase: {stock['symbol']}",
+            f"User {user['username']} purchased {quantity} shares of {stock['symbol']} at ₹{stock['price']} per share.",
+            {
+                'event_type': {
+                    'DataType': 'String',
+                    'StringValue': 'BUY'
+                },
+                'stock_symbol': {
+                    'DataType': 'String',
+                    'StringValue': stock['symbol']
+                },
+                'quantity': {
+                    'DataType': 'Number',
+                    'StringValue': str(quantity)
+                }
+            }
+        )
+
+        flash(f"Successfully sold {quantity} shares of {stock['symbol']}!", "success")
+        return redirect(url_for('service05'))
+
+    return render_template('sell_stock.html', user=user, stock=stock, portfolio_entry=portfolio_entry)
+
+# Portfolio view for traders
+@app.route('/service05')
+def service05():
+    if 'email' not in session or session.get('role') != 'trader':
+        flash("Access denied. Traders only.", "danger")
+        return redirect(url_for('login'))
+
+    user = get_user_by_email(session.get('email'))   
+    if not user:
+       session.clear()
+       flash("Your account no longer exists.", "danger")
+       return redirect(url_for('login'))
+
+    user = get_user_by_email(session.get('email'))
+
+    # Get portfolio with stock details
+    portfolio = get_user_portfolio(user['id'])
+
+    # Calculate total portfolio value
+    total_value = 0
+    try:
+        for item in portfolio:
+            if 'stock' in item and 'price' in item['stock'] and 'quantity' in item:
+                total_value += float(item['quantity']) * float(item['stock']['price'])
+    except Exception as e:
+        print(f"Error calculating portfolio value: {str(e)}")
+        flash("There was an issue calculating your portfolio value.", "warning")
+
+    # Get transaction history
+    transactions = get_user_transactions(user['id'])
+    # Convert transaction dates to datetime objects
+    for transaction in transactions:
+        if 'transaction_date' in transaction and transaction['transaction_date']:
+            try:
+                # Convert ISO string to datetime object if it's not already
+                if isinstance(transaction['transaction_date'], str):
+                    transaction['transaction_date'] = datetime.fromisoformat(transaction['transaction_date'])
+            except (ValueError, TypeError) as e:
+                print(f"Error converting date: {str(e)}")
+                # If conversion fails, set to None
+                transaction['transaction_date'] = None
+
+    return render_template('service-details-5.html', user=user, portfolio=portfolio, total_value=total_value, transactions=transactions)
+
+@app.route('/debug/check_stocks')
+def check_stocks():
+    # This route will check if stocks are accessible in the database
+    try:
+        stocks = get_all_stocks()
+        result = {
+            "success": True,
+            "stocks_count": len(stocks),
+            "first_five": [{"id": s['id'], "symbol": s['symbol'], "name": s['name'], "price": float(s['price'])} for s in stocks[:5]]
+        }
+    except Exception as e:
+        result = {
+            "success": False,
+            "error": str(e)
+        }
+
+    # Return as plain text for easy debugging
+    return "<pre>" + str(result) + "</pre>"
+
 @app.route('/logout')
 def logout():
     session.clear()
-    flash('You have been logged out successfully.', 'info')
+    flash('You have been logged out.', 'info')
     return redirect(url_for('index'))
 
-# Error handlers
-@app.errorhandler(404)
-def not_found_error(error):
-    return render_template('404.html'), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    return render_template('500.html'), 500
-
-# Run the application
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port = 5000)
